@@ -271,6 +271,7 @@ const Modal = () => {
       const requestInit: RequestInit = {
         headers,
         method: "post",
+        cache: "no-store",
         mode: "cors",
         body: formData,
       };

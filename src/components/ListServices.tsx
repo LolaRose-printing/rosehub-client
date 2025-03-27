@@ -1,6 +1,6 @@
-import { Service } from "@/types/service";
-import Image from "next/image";
 import { FC } from "react";
+import Image from "next/image";
+import { Service } from "@/types/service";
 
 type Props = {
   services: Service[];

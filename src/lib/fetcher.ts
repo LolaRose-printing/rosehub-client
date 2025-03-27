@@ -8,6 +8,7 @@ function getRequest(url: URL): Promise<Response> {
   });
   const requestInit: RequestInit = {
     headers,
+    cache: "no-store",
     method: "get",
     mode: "cors",
   };

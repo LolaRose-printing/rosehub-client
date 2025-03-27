@@ -1,7 +1,7 @@
 "use client";
 
-import { Token } from "@/types/token";
 import { FC, MouseEvent } from "react";
+import { Token } from "@/types/token";
 
 type Props = {
   tokens: Token[];
