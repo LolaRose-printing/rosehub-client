@@ -17,6 +17,7 @@ import clsx from "clsx";
 const navigation = [
   { name: "Home", href: "/", },
   { name: "Services", href: "/services", },
+  { name: "Orders", href: "/orders" },
   { name: "Online Printing", href: "/printing" },
   { name: "Options", href: "/options" },
 ];

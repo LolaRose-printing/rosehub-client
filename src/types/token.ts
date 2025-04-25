@@ -3,5 +3,5 @@ export type Token = {
   name: string;
   value: string;
   expiration: string;
-  created_at: string;
+  createdAt: string;
 };
