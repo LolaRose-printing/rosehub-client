@@ -3,10 +3,10 @@
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SubmitHandler, useForm } from "react-hook-form";
 import { createPortal } from "react-dom";
 import { z } from "zod";
-import { SubmitHandler, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 type Inputs = {
   name: string;
@@ -41,6 +41,7 @@ const Modal = () => {
       const requestInit: RequestInit = {
         headers,
         method: "post",
+        cache: "no-store",
         mode: "cors",
         body: JSON.stringify(data),
       };
@@ -55,7 +56,7 @@ const Modal = () => {
         return;
       }
 
-      //location.href = "/options/tokens";
+    location.href = "/options/tokens";
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error: unknown) {
       throw new Error("error");

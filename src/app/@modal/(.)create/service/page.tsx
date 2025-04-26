@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { IoMdAdd } from "react-icons/io";
 import clsx from "clsx";
 import { z } from "zod";
+import { getCookie } from "cookies-next";
 
 type Configuration = {
   items: string[];
@@ -258,7 +259,7 @@ const Modal = () => {
       formData.append("description", data.description);
       formData.append("price", data.price);
       formData.append("discount", data.discount);
-      formData.append("image", data.image![0]);
+      formData.append("thumbnail", data.image![0]);
 
       for (let i = 0; i < state.configurations.length; i++) {
         formData.append(`configurations[${i}][title]`, state.configurations[i].title);
@@ -267,10 +268,13 @@ const Modal = () => {
         }
       }
 
-      const headers = new Headers({});
+      const headers = new Headers({
+        Authorization:`Bearer ${await getCookie("auth")}`,
+      });
       const requestInit: RequestInit = {
         headers,
         method: "post",
+        cache: "no-store",
         mode: "cors",
         body: formData,
       };

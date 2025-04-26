@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { FC } from "react";
+import Link from "next/link";
 import { TbPointFilled } from "react-icons/tb";
 
 const options = [

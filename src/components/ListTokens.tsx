@@ -1,7 +1,7 @@
 "use client";
 
-import { Token } from "@/types/token";
 import { FC, MouseEvent } from "react";
+import { Token } from "@/types/token";
 
 type Props = {
   tokens: Token[];
@@ -23,7 +23,7 @@ export const ListTokens: FC<Readonly<Props>> = ({ tokens }: Readonly<Props>) => 
         </thead>
         <tbody>
         {tokens.map(token => {
-          const createdAt = new Date(token.created_at);
+          const createdAt = new Date(token.createdAt);
           const formatToken = `${token.value.slice(0, 40)}...`;
           const formatDate = `${createdAt.getDate()}-${createdAt.getMonth() + 1}-${createdAt.getFullYear()}`;
 

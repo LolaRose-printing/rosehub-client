@@ -1,9 +1,9 @@
+import { NextPage } from "next";
 import { CreateToken } from "@/components/CreateToken";
 import { Header } from "@/components/Header";
 import { ListTokens } from "@/components/ListTokens";
 import { Settings } from "@/components/Settings";
 import { getTokens } from "@/lib/fetcher";
-import { NextPage } from "next";
 
 const Page: NextPage = async () => {
   const tokens = await getTokens();
