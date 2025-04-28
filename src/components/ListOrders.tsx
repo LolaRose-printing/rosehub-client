@@ -21,15 +21,15 @@ export const ListOrders: FC<Readonly<Props>> = ({ orders }: Readonly<Props>) => 
           <div className="shadow-lg rounded-lg overflow-hidden mx-4 md:mx-10">
             <table className="w-full table-auto text-justify">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className=" py-4 px-12 text-left text-gray-600 font-bold uppercase">Id</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Quantity</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Customer Email</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Service</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Status</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Creation</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Selection</th>
-                  <th className=" py-4 px-6 text-left text-gray-600 font-bold uppercase">Image</th>
+                <tr className="bg-gray-900">
+                  <th className=" py-4 px-12 text-left text-gray-200 font-bold uppercase">Id</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Quantity</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Customer Email</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Service</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Status</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Creation</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Selection</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Image</th>
                 </tr>
               </thead>
               <tbody className="bg-gray-800">
@@ -47,11 +47,11 @@ export const ListOrders: FC<Readonly<Props>> = ({ orders }: Readonly<Props>) => 
 
                 return (
                   <tr key={order.id} className="hover:bg-gray-700">
-                    <td className=" py-4 px-12 border-b border-gray-200">{order.id}</td>
-                    <td className=" py-4 px-6 border-b border-gray-200 truncate">{order.quantity}</td>
-                    <td className=" py-4 px-6 border-b border-gray-200">{order.customerEmail}</td>
-                    <td className="py-4 px-6 border-b border-gray-200">{order.service.title}</td>
-                    <td className=" py-4 px-6 border-b border-gray-200">
+                    <td className=" py-4 px-12 border-b border-gray-700">{order.id}</td>
+                    <td className=" py-4 px-6 border-b border-gray-700 truncate">{order.quantity}</td>
+                    <td className=" py-4 px-6 border-b border-gray-700">{order.customerEmail}</td>
+                    <td className="py-4 px-6 border-b border-gray-700">{order.service.title}</td>
+                    <td className=" py-4 px-6 border-b border-gray-700">
                       <span className={clsx(
                         "text-white py-1 px-2 rounded-full text-xs",
                         {
@@ -61,21 +61,21 @@ export const ListOrders: FC<Readonly<Props>> = ({ orders }: Readonly<Props>) => 
                         },
                       )}>{order.status}</span>
                     </td>
-                    <td className=" py-4 px-6 border-b border-gray-200">{formatDate}</td>
-                    <td className="py-4 px-6 border-b border-gray-200">
+                    <td className=" py-4 px-6 border-b border-gray-700">{formatDate}</td>
+                    <td className="py-4 px-6 border-b border-gray-700">
                       {order.selection.map((selection: Selection, i: number) => {
                         return (
                           <span
                             key={i}
                             id="badge-dismiss-default"
-                            className="inline-flex items-center px-2 py-1 me-2 text-sm font-medium text-blue-800 bg-blue-100 rounded dark:bg-blue-900 dark:text-blue-300"
+                            className="inline-flex items-center px-2 py-1 me-2 text-sm font-medium rounded bg-blue-900 text-blue-300"
                           >
                             {selection.title}
                           </span>
                         );
                       })}
                     </td>
-                    <td className=" py-4 px-6 border-b border-gray-200">
+                    <td className="py-4 px-6 border-b border-gray-700">
                       <Image
                         src={`${process.env.NEXT_PUBLIC_API_URL}/${order.image.split("/")[1]}`}
                         alt="image"

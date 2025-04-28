@@ -80,16 +80,16 @@ export const SignIn: FC = () => {
             height={350}
             className="m-auto"
           />
-          <h2 className="text-center text-2xl font-bold leading-9 tracking-tight text-gray-900 dark:text-gray-200">Enter your credentials to Sign In on RoseHub</h2>
+          <h2 className="text-center text-2xl font-bold leading-9 tracking-tight text-gray-200">Enter your credentials to Sign In on RoseHub</h2>
         </div>
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm px-6 md:px-0">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <div className="flex items-center justify-between">
-                <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-100">Email</label>
               </div>
               <div className="mt-2">
-                <input id="email" type="email" autoComplete="email" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("email", { required: true })} />
+                <input id="email" type="email" autoComplete="email" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("email", { required: true })} />
               </div>
               <div className="mt-2">
                 {errors.email && <span>This field is required</span>}
@@ -97,10 +97,10 @@ export const SignIn: FC = () => {
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-100">Password</label>
               </div>
               <div className="mt-2">
-                <input id="password" type="password" autoComplete="current-password" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("password", { required: true })} />
+                <input id="password" type="password" autoComplete="current-password" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("password", { required: true })} />
               </div>
               <div className="mt-2">
                 {errors.password && <span>This field is required</span>}
@@ -110,7 +110,7 @@ export const SignIn: FC = () => {
               <button
                 type="submit"
                 className={clsx(
-                  "mt-10 transition ease-in-out duration-150 flex w-full justify-center items-center bg-dark dark:bg-gray-900  rounded-lg shadow-md px-6 py-3 text-sm font-medium text-gray-800 dark:text-white hover:dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
+                  "mt-10 transition ease-in-out duration-150 flex w-full justify-center items-center bg-gray-900 rounded-lg shadow-md px-6 py-3 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
                   {
                     "cursor-not-allowed": loading,
                   },

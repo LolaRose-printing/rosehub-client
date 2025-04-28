@@ -2,6 +2,7 @@
 
 import { FC, MouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Nunito } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -13,6 +14,11 @@ import {
 import { useAuthStore } from "@/hooks/useAuthStore";
 import { useStore } from "zustand";
 import clsx from "clsx";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 const navigation = [
   { name: "Home", href: "/", },
@@ -35,7 +41,7 @@ export const Header: FC = () => {
   };
 
   return (
-    <Disclosure as="nav" className="bg-gray-100 dark:bg-gray-800">
+    <Disclosure as="nav" className={clsx(nunito.className, "bg-gray-800")}>
       <div className="mx-auto  px-3 sm:px-6 lg:px-8 py-1">
         <div className="relative flex h-16 items-center justify-between">
           <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
@@ -54,7 +60,7 @@ export const Header: FC = () => {
                     href={item.href}
                     aria-current={pathName === item.href ? "page" : undefined}
                     className={clsx(
-                      pathName === item.href ? "bg-gray-400 dark:bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white",
+                      pathName === item.href ? "bg-gray-900 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white",
                       "rounded-md px-3 py-2 text-sm font-medium m-auto",
                     )}
                   >
@@ -70,7 +76,7 @@ export const Header: FC = () => {
               <Link
                 href=""
                 onClick={handleSignOut}
-                className={clsx("bg-gray-400 dark:bg-gray-700 text-white rounded-md px-3 py-3 text-sm font-medium")}
+                className={clsx("bg-gray-700 text-white rounded-md px-3 py-3 text-sm font-medium")}
               >
                 <span className="text-[18px]">Sign out</span>
               </Link>

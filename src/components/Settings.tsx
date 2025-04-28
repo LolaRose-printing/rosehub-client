@@ -16,7 +16,7 @@ export const Settings: FC = () => {
       <ul className="flex flex-col bg-[#101010] py-6 h-96 w-72 text-left rounded-lg">
         {options.map((option, i) => {
           return (
-            <Link key={i} href={option.path} className="transition ease-in-out duration-150 bg-dark  rounded-lg shadow-md px-6 py-3 text-sm font-bold text-gray-800 dark:text-white hover:dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 justify-center items-center">
+            <Link key={i} href={option.path} className="transition ease-in-out duration-150 rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 justify-center items-center">
               <div className="flex flex-row m-auto items-center">
                 <TbPointFilled />
                 <li className="px-6">{option.name}</li>

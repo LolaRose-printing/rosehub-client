@@ -100,7 +100,7 @@ const Modal = () => {
                   leaveFrom="opacity-100 scale-100"
                   leaveTo="opacity-0 scale-95"
                 >
-                  <DialogPanel className="shadow-2xl bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-100 w-full max-w-xl transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-xl transition-all text-center">
+                  <DialogPanel className="shadow-2xl bg-gray-900 text-gray-100 w-full max-w-xl transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-xl transition-all text-center">
                     <DialogTitle
                       as="h3"
                       className="text-lg font-medium leading-6 text-white-900 text-center m-auto justify-center items-center"
@@ -110,10 +110,10 @@ const Modal = () => {
                     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Name</label>
+                          <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-100">Name</label>
                         </div>
                         <div>
-                          <input id="name" type="text" autoComplete="name" className="px-2 w-full max-w-82 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("name", { required: true })} />
+                          <input id="name" type="text" autoComplete="name" className="px-2 w-full max-w-82 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("name", { required: true })} />
                         </div>
                         <div className="mt-2">
                           {errors.name && <span>{errors.name.message}</span>}
@@ -121,7 +121,7 @@ const Modal = () => {
                       </div>
                       <div className="w-full max-w-82 m-auto">      
                         <div className="relative text-center">
-                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Duration</label>
+                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-100">Duration</label>
                           <select
                             className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-400 shadow-sm focus:shadow-md appearance-none cursor-pointer"
                             onChange={evt => {
@@ -143,7 +143,7 @@ const Modal = () => {
                         {errors.response && <span>{errors.response.message}</span>}
                       </div>
                       <div className="text-center justify-center items-center m-auto">
-                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-dark dark:bg-gray-700 rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto" disabled={loading}>
+                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-700 rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto" disabled={loading}>
                           <span>Create</span>
                         </button>
                       </div>

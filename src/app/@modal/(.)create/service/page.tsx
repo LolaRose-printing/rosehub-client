@@ -129,30 +129,30 @@ const ConfigurationComponent = ({ configurationState }: any) => {
     <div className="flex flex-col gap-3">
       <div className="flex flex-row items-center justify-center gap-3">
         <div className="flex flex-col">
-          <label htmlFor="title_config" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Title</label>
+          <label htmlFor="title_config" className="block text-sm font-medium leading-6 text-gray-100">Title</label>
           <input
             id="title"
             type="text"
             autoComplete="title"
-            className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5"
+            className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5"
             onChange={evt => setTitle(evt.target.value)}
             value={title}
           />
         </div>
         <div className="flex flex-col">
-          <label htmlFor="item_config" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Item</label>
+          <label htmlFor="item_config" className="block text-sm font-medium leading-6 text-gray-100">Item</label>
           <input
             id="item"
             type="text"
             autoComplete="item"
-            className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5"
+            className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5"
             onChange={evt => setItem(evt.target.value)}
             value={item}
           />
         </div>
         <div className="flex flex-col">
           <button
-            className="flex flex-row gap-2 items-center justify-center mt-6 bg-dark dark:bg-gray-800 rounded-lg shadow-md py-2 px-3 w-full max-w-72 m-auto"
+            className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-800 rounded-lg shadow-md py-2 px-3 w-full max-w-72 m-auto"
             onClick={addItem}
           >
             <IoMdAdd />
@@ -164,7 +164,7 @@ const ConfigurationComponent = ({ configurationState }: any) => {
         <button
           className={clsx(
             "flex flex-row gap-2 items-center justify-center rounded-lg shadow-md px-6 py-3 max-w-52 m-auto",
-            isOnConfiguration ? "bg-green-600" : "bg-dark dark:bg-gray-800",
+            isOnConfiguration ? "bg-green-600" : "bg-gray-800",
           )}
           onClick={addConfiguration}
         >
@@ -172,7 +172,7 @@ const ConfigurationComponent = ({ configurationState }: any) => {
           <span>{isOnConfiguration ? "Added" : "Add"}</span>
         </button>
         <button
-          className="flex flex-row gap-2 items-center justify-center bg-dark dark:bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto"
+          className="flex flex-row gap-2 items-center justify-center bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto"
           onClick={removeConfiguration}
         >
           <IoMdAdd />
@@ -334,7 +334,7 @@ const Modal = () => {
                   leaveFrom="opacity-100 scale-100"
                   leaveTo="opacity-0 scale-95"
                 >
-                  <DialogPanel className="shadow-2xl bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-100 w-full max-w-xl transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-xl transition-all text-center">
+                  <DialogPanel className="shadow-2xl bg-gray-900 text-gray-100 w-full max-w-xl transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-xl transition-all text-center">
                     <DialogTitle
                       as="h3"
                       className="text-lg font-medium leading-6 text-white-900 text-center m-auto justify-center items-center"
@@ -344,10 +344,10 @@ const Modal = () => {
                     <form className="space-y-6">
                       <div className="text-center">
                         <div>
-                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Title</label>
+                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-100">Title</label>
                         </div>
                         <div>
-                          <input id="title" type="text" autoComplete="title" className="px-2 w-full max-w-82 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("title", { required: true })} />
+                          <input id="title" type="text" autoComplete="title" className="px-2 w-full max-w-82 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("title", { required: true })} />
                         </div>
                         <div className="mt-2">
                           {errors.title && <span>{errors.title.message}</span>}
@@ -355,12 +355,12 @@ const Modal = () => {
                       </div>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Description</label>
+                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-100">Description</label>
                         </div>
                         <div>
                           <textarea
                             defaultValue="" {...register("description", { required: true })}
-                            className="shadow appearance-none border rounded px-2 w-full max-w-82 py-2 px-3 text-gray-900 leading-tight focus:outline-none focus:shadow-outline dark:bg-[#79889e]"
+                            className="shadow appearance-none border rounded px-2 w-full max-w-82 py-2 px-3 text-gray-900 leading-tight focus:outline-none focus:shadow-outline bg-[#79889e]"
                             rows={5}
                             ></textarea>
                         </div>
@@ -370,10 +370,10 @@ const Modal = () => {
                       </div>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Price</label>
+                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price</label>
                         </div>
                         <div>
-                          <input id="price" type="text" autoComplete="price" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
+                          <input id="price" type="text" autoComplete="price" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
                         </div>
                         <div className="mt-2">
                           {errors.price && <span>{errors.price.message}</span>}
@@ -381,10 +381,10 @@ const Modal = () => {
                       </div>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Discount</label>
+                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount</label>
                         </div>
                         <div>
-                          <input id="discount" type="text" autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md dark:bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
+                          <input id="discount" type="text" autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
                         </div>
                         <div className="mt-2">
                           {errors.discount && <span>{errors.discount.message}</span>}
@@ -392,7 +392,7 @@ const Modal = () => {
                       </div>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="image" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Image</label>
+                          <label htmlFor="image" className="block text-sm font-medium leading-6 text-gray-100">Image</label>
                         </div>
                         <div>
                           <input id="image" type="file" {...register("image", { required: true })} />
@@ -403,7 +403,7 @@ const Modal = () => {
                       </div>
                       <div className="text-center justify-center items-center m-auto">
                         <div>
-                          <label htmlFor="configuration" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Configuration</label>
+                          <label htmlFor="configuration" className="block text-sm font-medium leading-6 text-gray-100">Configuration</label>
                         </div>
                         <div>
                           {configurationsComponents.map((configuration, i) => {
@@ -416,7 +416,7 @@ const Modal = () => {
                         </div>
                         <div>
                           <button
-                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-dark dark:bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto" onClick={addConfiguration}>
+                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto" onClick={addConfiguration}>
                             <IoMdAdd />
                           </button>
                           <div className="mt-2">
@@ -429,7 +429,7 @@ const Modal = () => {
                         <div>
                           <button
                             type="submit"
-                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-dark dark:bg-gray-700 rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto"
+                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-700 rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto"
                             onClick={handleSubmit(onSubmit)}
                             disabled={loading}
                           >
