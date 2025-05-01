@@ -1,6 +1,7 @@
 "use client";
 
 import { FC, MouseEvent } from "react";
+import { ClipboardDocumentIcon } from '@heroicons/react/24/solid'
 import { Token } from "@/types/token";
 
 type Props = {
@@ -36,7 +37,7 @@ export const ListTokens: FC<Readonly<Props>> = ({ tokens }: Readonly<Props>) => 
                     hour12: true,
                   }).format(createdAt);
                   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  const copyToClipboard = (_evt: MouseEvent<HTMLParagraphElement>) => {
+                  const copyToClipboard = (_evt: MouseEvent<SVGSVGElement>) => {
                     navigator.clipboard.writeText(token.value);
                   };
 
@@ -48,8 +49,12 @@ export const ListTokens: FC<Readonly<Props>> = ({ tokens }: Readonly<Props>) => 
                       <td className="py-4 px-12 border-b border-gray-700">
                         <p className="text-sm text-white">{token.name}</p>
                       </td>
-                      <td className="py-4 px-12 border-b border-gray-700">
-                        <p className="text-sm text-white" onClick={copyToClipboard}>{formatToken}</p>
+                      <td className="flex flex-row gap-1 py-4 px-12  flex-justify items-center mt-2">
+                        <p className="text-sm text-white">{formatToken}</p>
+                        <ClipboardDocumentIcon
+                          className="size-6 cursor-pointer"
+                          onClick={copyToClipboard}
+                        />
                       </td>
                       <td className="py-4 px-12 border-b border-gray-700">
                         <p className="text-sm text-white">{formatDate}</p>
