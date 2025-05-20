@@ -11,7 +11,8 @@ export type Order = {
   quantity: number;
   customerEmail: string;
   serviceId: number;
-  image: string;
+  frontImage: string;
+  backImage: string;
   selection: Selection[];
   status: string;
   service: Service;

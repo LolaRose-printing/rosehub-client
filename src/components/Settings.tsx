@@ -13,7 +13,7 @@ export const Settings: FC = () => {
   return (
     <div>
       <h1 className="mb-6 text-lg font-light text-gray-200">Global Settings</h1>
-      <ul className="flex flex-col bg-[#101010] py-6 h-96 w-72 text-left rounded-lg">
+      <ul className="flex flex-col bg-[#080b13] py-6 h-96 w-72 text-left rounded-lg border border-gray-600">
         {options.map((option, i) => {
           return (
             <Link key={i} href={option.path} className="transition ease-in-out duration-150 rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 justify-center items-center">

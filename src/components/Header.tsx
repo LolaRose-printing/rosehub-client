@@ -41,8 +41,8 @@ export const Header: FC = () => {
   };
 
   return (
-    <Disclosure as="nav" className={clsx(nunito.className, "bg-gray-800")}>
-      <div className="mx-auto  px-3 sm:px-6 lg:px-8 py-1">
+    <Disclosure as="nav" className={clsx(nunito.className, "bg-[#1f2941]")}>
+      <div className="mx-auto px-3 sm:px-6 lg:px-8 py-1">
         <div className="relative flex h-16 items-center justify-between">
           <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
             <div className="hidden sm:ml-6 sm:block">

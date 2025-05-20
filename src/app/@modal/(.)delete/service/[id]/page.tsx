@@ -92,10 +92,10 @@ const Modal = ({ params }: { params: Promise<Params> }) => {
                     </DialogTitle>
                     <div className="space-y-6">
                       <div className="text-center justify-center items-center flex flex-row gap-3">
-                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-700 rounded-lg shadow-md px-6 py-2 w-full max-w-20" disabled={loading} onClick={onConfirm}>
+                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-2 w-full max-w-20" disabled={loading} onClick={onConfirm}>
                           <span>Yes</span> 
                         </button>
-                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-700 rounded-lg shadow-md px-6 py-2 w-full max-w-20" onClick={onClose}>
+                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-2 w-full max-w-20" onClick={onClose}>
                           <span>No</span>
                         </button>
                       </div>

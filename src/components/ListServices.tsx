@@ -73,8 +73,8 @@ export const ListServices: FC<Readonly<Props>> = ({ services }: Readonly<Props>)
                         <div>
                         <Link
                             type="submit"
-                            className="transition ease-in-out duration-150  bg-gray-900 rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                            href={`/update/service/${service.id}`}
+                            className="transition ease-in-out duration-150 bg-[#612ad5] rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-[#612ad5ed] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                            href={`/update/service/${service.slug}`}
                           >
                             Update
                           </Link>
@@ -82,7 +82,7 @@ export const ListServices: FC<Readonly<Props>> = ({ services }: Readonly<Props>)
                         <div>
                           <Link
                             type="submit"
-                            className="transition ease-in-out duration-150 bg-gray-900 rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                            className="transition ease-in-out duration-150 bg-[#612ad5] rounded-lg shadow-md px-6 py-3 text-sm font-bold text-white hover:bg-[#612ad5ed] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                             href={`/delete/service/${service.id}`}
                           >
                             Delete

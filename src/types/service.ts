@@ -11,6 +11,7 @@ export type Service = {
   id: number;
   title: string;
   price: string;
+  description: string;
   discount: string;
   thumbnail: string;
   configurations: Configuration[];

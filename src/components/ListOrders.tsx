@@ -29,7 +29,8 @@ export const ListOrders: FC<Readonly<Props>> = ({ orders }: Readonly<Props>) => 
                   <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Status</th>
                   <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Creation</th>
                   <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Selection</th>
-                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Image</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Front Image</th>
+                  <th className=" py-4 px-6 text-left text-gray-200 font-bold uppercase">Back Image</th>
                 </tr>
               </thead>
               <tbody className="bg-gray-800">
@@ -77,12 +78,25 @@ export const ListOrders: FC<Readonly<Props>> = ({ orders }: Readonly<Props>) => 
                     </td>
                     <td className="py-4 px-6 border-b border-gray-700">
                       <Image
-                        src={`${process.env.NEXT_PUBLIC_API_URL}/${order.image.split("/")[1]}`}
+                        src={`${process.env.NEXT_PUBLIC_API_URL}/${order.frontImage.split("/")[1]}`}
                         alt="image"
                         width={350}
                         height={350}
                         className="w-16 h-16 object-cover rounded"
                       />
+                    </td>
+                    <td className="py-4 px-6 border-b border-gray-700">
+                      {order.backImage ? (
+                        <Image
+                          src={`${process.env.NEXT_PUBLIC_API_URL}/${order.backImage.split("/")[1]}`}
+                          alt="image"
+                          width={350}
+                          height={350}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                      ) : (
+                        <span className="text-gray-400 italic text-sm">No image</span>
+                      )}
                     </td>
                   </tr>
                 );

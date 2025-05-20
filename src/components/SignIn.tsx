@@ -110,7 +110,7 @@ export const SignIn: FC = () => {
               <button
                 type="submit"
                 className={clsx(
-                  "mt-10 transition ease-in-out duration-150 flex w-full justify-center items-center bg-gray-900 rounded-lg shadow-md px-6 py-3 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
+                  "mt-10 transition ease-in-out duration-150 flex w-full justify-center items-center bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
                   {
                     "cursor-not-allowed": loading,
                   },

@@ -6,7 +6,7 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { createPortal } from "react-dom";
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { IoMdAdd } from "react-icons/io";
+import { IoMdAdd, IoMdRemove } from "react-icons/io";
 import clsx from "clsx";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
@@ -88,8 +88,8 @@ const schema = z.object({
 const ConfigurationComponent = ({ configurationState }: any) => {
   const [item, setItem] = useState("");
   const [title, setTitle] = useState("");
-  const [items, setItems] = useState<string[]>([]);
-  const [isOnConfiguration, setIsOnConfiguration] = useState(false);
+  const [items, setItems] = useState<string[]>(configurationState.items);
+  const [isOnConfiguration, setIsOnConfiguration] = useState(configurationState.isOnConfiguration);
 
   const addItem = (evt: MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -127,7 +127,7 @@ const ConfigurationComponent = ({ configurationState }: any) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-row items-center justify-center gap-3">
+      <div className="flex flex-col items-center justify-center gap-3">
         <div className="flex flex-col">
           <label htmlFor="title_config" className="block text-sm font-medium leading-6 text-gray-100">Title</label>
           <input
@@ -139,7 +139,8 @@ const ConfigurationComponent = ({ configurationState }: any) => {
             value={title}
           />
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-row gap-3">
+          <div className="flex flex-col">
           <label htmlFor="item_config" className="block text-sm font-medium leading-6 text-gray-100">Item</label>
           <input
             id="item"
@@ -159,6 +160,15 @@ const ConfigurationComponent = ({ configurationState }: any) => {
             <span>Add Item</span>
           </button>
         </div>
+        </div>
+      </div>
+      <div className="flex flex-row gap-2 m-auto wrap w-full max-w-96 items-center justify-center flex-wrap">
+        {items.map((item, i) => { 
+          return <span key={i} className="py-2 px-2 bg-gray-600 rounded">{item}</span>;
+        })}
+      </div>
+      <div>
+        {configurationState.errors.configuration && <span>{configurationState.errors.configuration.message}</span>}
       </div>
       <div className="flex flex-row m-auto gap-3">
         <button
@@ -175,17 +185,9 @@ const ConfigurationComponent = ({ configurationState }: any) => {
           className="flex flex-row gap-2 items-center justify-center bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto"
           onClick={removeConfiguration}
         >
-          <IoMdAdd />
+          <IoMdRemove />
           <span>Remove</span>
         </button>
-      </div>
-      <div className="flex flex-row gap-2 m-auto wrap w-full max-w-96 items-center justify-center flex-wrap">
-        {items.map((item, i) => {
-          return <span key={i} className="py-2 px-2 bg-gray-600 rounded">{item}</span>;
-        })}
-      </div>
-      <div>
-        {configurationState.errors.configuration && <span>{configurationState.errors.configuration.message}</span>}
       </div>
     </div>
   );
@@ -221,7 +223,8 @@ const Modal = () => {
         };
       case Type.Delete:
         const removedComponent = configurationsComponents.filter(el => el.id !== action.payload);
-        setConfigurationsComponents([...removedComponent]);
+        console.log(action.payload, removedComponent);
+        setConfigurationsComponents(removedComponent);
 
         const removed = state.configurations.filter(el => el.id !== action.payload);
         setValue("configuration", [...removed]);
@@ -241,11 +244,20 @@ const Modal = () => {
   const addConfiguration = (evt: MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     evt.stopPropagation();
-    setConfigurationsComponents([
-      ...configurationsComponents,
+    setConfigurationsComponents(prev => [
+      ...prev,
       {
         id: counter,
-        component: <ConfigurationComponent key={counter} configurationState={{ id: counter, dispatch, errors }} />,
+        component: <ConfigurationComponent
+          key={counter}
+          configurationState={{
+            id: counter,
+            items: [],
+            isOnConfiguration: false,
+            dispatch,
+            errors,
+          }}
+        />,
       },
     ]);
     setCounter(counter + 1);
@@ -368,9 +380,10 @@ const Modal = () => {
                           {errors.description && <span>{errors.description.message}</span>}
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="flex flex-row gap-6 justify-center">
+                        <div className="text-center">
                         <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price</label>
+                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price ($)</label>
                         </div>
                         <div>
                           <input id="price" type="text" autoComplete="price" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
@@ -381,7 +394,7 @@ const Modal = () => {
                       </div>
                       <div className="text-center">
                         <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount</label>
+                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount ($)</label>
                         </div>
                         <div>
                           <input id="discount" type="text" autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
@@ -389,6 +402,7 @@ const Modal = () => {
                         <div className="mt-2">
                           {errors.discount && <span>{errors.discount.message}</span>}
                         </div>
+                      </div>
                       </div>
                       <div className="text-center">
                         <div>

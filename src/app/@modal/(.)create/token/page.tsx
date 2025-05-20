@@ -143,7 +143,7 @@ const Modal = () => {
                         {errors.response && <span>{errors.response.message}</span>}
                       </div>
                       <div className="text-center justify-center items-center m-auto">
-                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-700 rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto" disabled={loading}>
+                        <button type="submit" className="flex flex-row gap-2 items-center justify-center mt-6 bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto" disabled={loading}>
                           <span>Create</span>
                         </button>
                       </div>

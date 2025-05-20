@@ -29,6 +29,14 @@ export const getServices = async (): Promise<Service[]> => {
   return services || [];
 }
 
+export const getService = async (slug: string): Promise<Service> => {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${slug}`);
+  const response = await getRequest(url);
+  const service = await response.json();
+
+  return service;
+}
+
 export const getOrders = async (): Promise<Order[]> => {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/orders`);
   const response = await getRequest(url);
