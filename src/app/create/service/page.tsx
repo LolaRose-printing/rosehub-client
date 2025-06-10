@@ -1,0 +1,710 @@
+"use client";
+
+import { useState, useReducer, FormEvent, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { getCookie } from "cookies-next";
+import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
+
+// Enhanced Type Definitions
+type PrintDimension = {
+  width: number;
+  height: number;
+  unit: 'px' | 'in' | 'cm';
+};
+
+type PrintConfiguration = {
+  title: string;
+  items: string[];
+};
+
+type ServiceInputs = {
+  title: string;
+  description: string;
+  price: number;
+  discount: number;
+  image?: FileList;
+  dimensions: PrintDimension;
+  hasFrontBack: boolean;
+  configurations: PrintConfiguration[];
+  response?: string;
+};
+
+// Improved Validation Schema
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const dimensionSchema = z.object({
+  width: z.number().min(1, "Width must be at least 1"),
+  height: z.number().min(1, "Height must be at least 1"),
+  unit: z.enum(['px', 'in', 'cm'])
+});
+
+const configurationSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  items: z.array(z.string().min(1, "Item cannot be empty")).min(1, "At least one item is required")
+});
+
+const serviceSchema = z.object({
+  title: z.string().min(1, "Service title is required"),
+  description: z.string().min(1, "Description is required"),
+  price: z.number().min(0.01, "Price must be at least $0.01"),
+  discount: z.number().min(0, "Discount cannot be negative"),
+  image: z
+    .any()
+    .refine(file => file?.length === 1, "Image is required")
+    .refine(file => file?.[0]?.size <= MAX_FILE_SIZE, "Max file size is 15MB")
+    .refine(
+      file => ALLOWED_IMAGE_TYPES.includes(file?.[0]?.type),
+      "Only JPG, JPEG, PNG and WEBP formats are allowed"
+    ),
+  dimensions: dimensionSchema,
+  hasFrontBack: z.boolean(),
+  configurations: z.array(configurationSchema).min(1, "At least one configuration is required")
+});
+
+// Configuration Reducer
+enum ConfigActionType {
+  ADD_CONFIG,
+  REMOVE_CONFIG,
+  ADD_ITEM,
+  REMOVE_ITEM,
+  UPDATE_TITLE,
+}
+
+type ConfigAction =
+  | { type: ConfigActionType.ADD_CONFIG }
+  | { type: ConfigActionType.REMOVE_CONFIG; payload: number }
+  | { type: ConfigActionType.ADD_ITEM; payload: { configId: number; item: string } }
+  | { type: ConfigActionType.REMOVE_ITEM; payload: { configId: number; itemIdx: number } }
+  | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } };
+
+function configReducer(state: PrintConfiguration[], action: ConfigAction): PrintConfiguration[] {
+  switch (action.type) {
+    case ConfigActionType.ADD_CONFIG:
+      return [...state, { title: "", items: [] }];
+    
+    case ConfigActionType.REMOVE_CONFIG:
+      return state.filter((_, idx) => idx !== action.payload);
+    
+    case ConfigActionType.ADD_ITEM:
+      return state.map((config, idx) => 
+        idx === action.payload.configId 
+          ? { ...config, items: [...config.items, action.payload.item] }
+          : config
+      );
+    
+    case ConfigActionType.REMOVE_ITEM:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? { ...config, items: config.items.filter((_, i) => i !== action.payload.itemIdx) }
+          : config
+      );
+    
+    case ConfigActionType.UPDATE_TITLE:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? { ...config, title: action.payload.title }
+          : config
+      );
+    
+    default:
+      return state;
+  }
+}
+
+// Print Templates for Common Services
+const PRINT_TEMPLATES = [
+  {
+    name: "Business Card",
+    dimensions: { width: 1050, height: 600, unit: 'px' as const },
+    hasFrontBack: true,
+    configurations: [
+      { 
+        title: "Paper Type", 
+        items: ["Matte", "Glossy", "Recycled", "Premium"] 
+      },
+      { 
+        title: "Finish", 
+        items: ["Rounded Corners", "Spot UV", "Foil Stamping"] 
+      }
+    ]
+  },
+  {
+    name: "Flyer",
+    dimensions: { width: 1275, height: 1650, unit: 'px' as const },
+    hasFrontBack: false,
+    configurations: [
+      { 
+        title: "Size", 
+        items: ["A4", "A5", "DL"] 
+      },
+      { 
+        title: "Coating", 
+        items: ["Gloss", "Matte", "Soft Touch"] 
+      }
+    ]
+  },
+  {
+    name: "Poster",
+    dimensions: { width: 1800, height: 2400, unit: 'px' as const },
+    hasFrontBack: false,
+    configurations: [
+      { 
+        title: "Material", 
+        items: ["Photo Paper", "Vinyl", "Canvas"] 
+      },
+      { 
+        title: "Mounting", 
+        items: ["None", "Foam Board", "Frame"] 
+      }
+    ]
+  }
+];
+
+export default function CreateServicePage() {
+  const router = useRouter();
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [configs, dispatch] = useReducer(configReducer, []);
+  const [loading, setLoading] = useState(false);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    watch, 
+    formState: { errors } 
+  } = useForm<ServiceInputs>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      price: 0,
+      discount: 0,
+      dimensions: { width: 0, height: 0, unit: 'px' },
+      hasFrontBack: false,
+      configurations: []
+    }
+  });
+
+  // Watch values for real-time updates
+  const watchDimensions = watch("dimensions");
+  const watchHasFrontBack = watch("hasFrontBack");
+  const watchImage = watch("image");
+
+  // Image Preview Handler with Aspect Ratio Preview
+  useEffect(() => {
+    if (watchImage?.[0]) {
+      const file = watchImage[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        
+        img.onload = () => {
+          setImagePreview(img.src);
+          
+          // Create properly scaled preview
+          if (previewCanvasRef.current && watchDimensions.width > 0 && watchDimensions.height > 0) {
+            const canvas = previewCanvasRef.current;
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas to fixed size
+            canvas.width = 300;
+            canvas.height = 300;
+            
+            if (ctx) {
+              // Clear canvas
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              
+              // Calculate scaling factors
+              const scaleX = canvas.width / watchDimensions.width;
+              const scaleY = canvas.height / watchDimensions.height;
+              const scale = Math.min(scaleX, scaleY);
+              
+              // Calculate new dimensions
+              const newWidth = watchDimensions.width * scale;
+              const newHeight = watchDimensions.height * scale;
+              
+              // Center the image
+              const offsetX = (canvas.width - newWidth) / 2;
+              const offsetY = (canvas.height - newHeight) / 2;
+              
+              // Draw the uploaded image scaled to fit the dimensions
+              ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
+              
+              // Draw border to show the required dimensions
+              ctx.strokeStyle = '#f87171'; // red-400
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]);
+              ctx.strokeRect(offsetX, offsetY, newWidth, newHeight);
+              ctx.setLineDash([]);
+              
+              // Add dimension text
+              ctx.fillStyle = '#f87171';
+              ctx.font = '12px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText(
+                `${watchDimensions.width}×${watchDimensions.height}${watchDimensions.unit}`, 
+                canvas.width / 2, 
+                offsetY + newHeight + 20
+              );
+            }
+          }
+        };
+      };
+      
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  }, [watchImage, watchDimensions]);
+
+  // Template Selection
+  const applyTemplate = (template: typeof PRINT_TEMPLATES[number]) => {
+    setValue("dimensions", template.dimensions);
+    setValue("hasFrontBack", template.hasFrontBack);
+    dispatch({ type: ConfigActionType.REMOVE_CONFIG, payload: 0 }); // Clear existing
+    template.configurations.forEach((config, idx) => {
+      if (idx === 0) {
+        dispatch({ type: ConfigActionType.ADD_CONFIG });
+      }
+      setValue(`configurations.${idx}`, config);
+      dispatch({ 
+        type: ConfigActionType.UPDATE_TITLE, 
+        payload: { configId: idx, title: config.title } 
+      });
+      config.items.forEach(item => {
+        dispatch({ 
+          type: ConfigActionType.ADD_ITEM, 
+          payload: { configId: idx, item } 
+        });
+      });
+    });
+  };
+
+  // Form Submission
+// ... existing imports and code above ...
+
+const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+  setLoading(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("price", data.price.toString());
+    formData.append("discount", data.discount.toString());
+    
+    // Add dimensions as separate fields
+    formData.append("width", data.dimensions.width.toString());
+    formData.append("height", data.dimensions.height.toString());
+    formData.append("unit", data.dimensions.unit);
+    
+    formData.append("hasFrontBack", data.hasFrontBack.toString());
+    
+    // Append the image file
+    if (data.image && data.image.length > 0) {
+      formData.append("thumbnail", data.image[0]);
+    }
+
+    // Add configurations as JSON string
+    formData.append("configurations", JSON.stringify(data.configurations));
+
+    // API call to server.lolaprint.us
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getCookie("auth")}`
+      },
+      body: formData
+    });
+
+    const responseData = await response.json(); // Parse JSON response
+    
+    if (!response.ok) {
+      // Use the error message from the backend if available
+      const errorMessage = responseData.message || "Service creation failed";
+      throw new Error(errorMessage);
+    }
+
+    router.push("/services");
+  } catch (error: any) {
+    console.error("Creation error:", error);
+    setError("response", {
+      type: "manual",
+      message: error.message || "There was a problem creating the service"
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
+// ... rest of the component code below ...
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
+      <h1 className="text-2xl font-bold text-center mb-8">Create New Print Service</h1>
+      
+      {/* Print Templates Section */}
+      <div className="mb-8 p-4 bg-gray-800 rounded-lg">
+        <h2 className="text-lg font-semibold mb-4">Quick Templates</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PRINT_TEMPLATES.map((template, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => applyTemplate(template)}
+              className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md transition"
+            >
+              <h3 className="font-medium">{template.name}</h3>
+              <p className="text-sm text-gray-300">
+                {template.dimensions.width}×{template.dimensions.height}{template.dimensions.unit}
+                {template.hasFrontBack ? " | Double-sided" : ""}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Service Info Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Service Title *
+            </label>
+            <input
+              {...register("title")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="e.g., Business Cards"
+            />
+            {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Description *
+            </label>
+            <textarea
+              {...register("description")}
+              rows={3}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Describe your print service..."
+            />
+            {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>}
+          </div>
+        </div>
+
+        {/* Pricing Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Base Price ($) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              {...register("price", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.price && <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Discount ($) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              {...register("discount", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
+          </div>
+          
+          <div className="flex items-end">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                {...register("hasFrontBack")}
+                className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm font-medium">Double-sided printing</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Print Dimensions */}
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Print Dimensions *</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Width</label>
+              <input
+                type="number"
+                {...register("dimensions.width", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 1050"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Height</label>
+              <input
+                type="number"
+                {...register("dimensions.height", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 600"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Unit</label>
+              <select
+                {...register("dimensions.unit")}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="px">Pixels (px)</option>
+                <option value="in">Inches (in)</option>
+                <option value="cm">Centimeters (cm)</option>
+              </select>
+            </div>
+            
+            <div className="flex items-end">
+              <div className="text-sm bg-gray-700 p-2 rounded w-full">
+                <span className="block">Required Size:</span>
+                <span className="font-medium">
+                  {watchDimensions?.width || 0}×{watchDimensions?.height || 0}
+                  {watchDimensions?.unit}
+                </span>
+                {watchDimensions?.width && watchDimensions?.height && (
+                  <span className="block mt-1">
+                    Aspect: {(watchDimensions.width / watchDimensions.height).toFixed(2)}:1
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          {(errors.dimensions?.width || errors.dimensions?.height) && (
+            <p className="text-red-400 text-sm mt-2">
+              Both width and height are required
+            </p>
+          )}
+        </div>
+
+        {/* Image Upload with Preview */}
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Service Image *</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Upload Image
+              </label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-700 border-gray-600 hover:bg-gray-600 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <IoMdImage className="w-10 h-10 mb-3 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-400">
+                      Click to upload
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      PNG, JPG, WEBP (MAX. 15MB)
+                    </p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    {...register("image")}
+                    accept="image/*"
+                  />
+                </label>
+              </div>
+              {errors.image && <p className="text-red-400 text-sm mt-2">{errors.image.message}</p>}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Print Preview Guide
+              </label>
+              <div className="relative w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center">
+                {imagePreview ? (
+                  <canvas 
+                    ref={previewCanvasRef} 
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <p>Upload an image to see</p>
+                    <p>how it fits the dimensions</p>
+                    {watchDimensions?.width && watchDimensions?.height && (
+                      <div className="mt-4 bg-gray-600 p-3 rounded">
+                        <p className="text-sm">Required:</p>
+                        <p className="font-medium">
+                          {watchDimensions.width}×{watchDimensions.height}
+                          {watchDimensions.unit}
+                        </p>
+                        <p className="text-sm mt-1">
+                          Aspect: {(watchDimensions.width / watchDimensions.height).toFixed(2)}:1
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Print Configurations */}
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Print Options *</h2>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: ConfigActionType.ADD_CONFIG })}
+              className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm"
+            >
+              <IoMdAdd /> Add Option Group
+            </button>
+          </div>
+          
+          {configs.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <p>No configuration options added yet</p>
+              <p className="text-sm mt-2">Add option groups like paper types, finishes, etc.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {configs.map((config, configId) => (
+                <div key={configId} className="bg-gray-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="w-full">
+                      <label className="block text-sm font-medium mb-1">
+                        Option Group Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={config.title}
+                        onChange={(e) => dispatch({
+                          type: ConfigActionType.UPDATE_TITLE,
+                          payload: { configId, title: e.target.value }
+                        })}
+                        className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="e.g., Paper Type"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({
+                        type: ConfigActionType.REMOVE_CONFIG,
+                        payload: configId
+                      })}
+                      className="ml-4 text-red-500 hover:text-red-400 mt-7"
+                    >
+                      <IoMdRemove />
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Available Options *
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {config.items.map((item, itemIdx) => (
+                        <div 
+                          key={itemIdx}
+                          className="flex items-center bg-gray-600 rounded-full px-3 py-1"
+                        >
+                          <span>{item}</span>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({
+                              type: ConfigActionType.REMOVE_ITEM,
+                              payload: { configId, itemIdx }
+                            })}
+                            className="ml-2 text-red-400 hover:text-red-300"
+                          >
+                            <IoMdRemove />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex">
+                      <input
+                        type="text"
+                        placeholder="Add new option..."
+                        className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const input = e.currentTarget as HTMLInputElement;
+                            if (input.value.trim()) {
+                              dispatch({
+                                type: ConfigActionType.ADD_ITEM,
+                                payload: { configId, item: input.value.trim() }
+                              });
+                              input.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
+                        onClick={() => {
+                          const input = document.querySelector(`input[placeholder="Add new option..."]`) as HTMLInputElement;
+                          if (input?.value.trim()) {
+                            dispatch({
+                              type: ConfigActionType.ADD_ITEM,
+                              payload: { configId, item: input.value.trim() }
+                            });
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
+        </div>
+
+        {/* Submit Section */}
+        <div className="flex justify-center pt-6">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating Service...
+              </>
+            ) : "Create Service"}
+          </button>
+        </div>
+        
+        {errors.response && (
+          <p className="text-red-500 text-center py-4">{errors.response.message}</p>
+        )}
+      </form>
+    </div>
+  );
+}

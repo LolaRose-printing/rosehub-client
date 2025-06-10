@@ -1,8 +1,6 @@
-import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
   images: {
-    domains: ["localhost", "20.65.161.118"],
+    domains: ["localhost", "20.65.161.118", "server.lolaprint.us"],
   },
 
   publicRuntimeConfig: {
