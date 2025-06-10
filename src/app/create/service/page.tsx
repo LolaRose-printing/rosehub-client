@@ -15,9 +15,14 @@ type PrintDimension = {
   unit: 'px' | 'in' | 'cm';
 };
 
+type PrintConfigurationItem = {
+  name: string;
+  additionalPrice: number;
+};
+
 type PrintConfiguration = {
   title: string;
-  items: string[];
+  items: PrintConfigurationItem[];
 };
 
 type ServiceInputs = {
@@ -42,9 +47,14 @@ const dimensionSchema = z.object({
   unit: z.enum(['px', 'in', 'cm'])
 });
 
+const configurationItemSchema = z.object({
+  name: z.string().min(1, "Option name is required"),
+  additionalPrice: z.number().min(0, "Price cannot be negative").default(0)
+});
+
 const configurationSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  items: z.array(z.string().min(1, "Item cannot be empty")).min(1, "At least one item is required")
+  items: z.array(configurationItemSchema).min(1, "At least one item is required")
 });
 
 const serviceSchema = z.object({
@@ -72,14 +82,18 @@ enum ConfigActionType {
   ADD_ITEM,
   REMOVE_ITEM,
   UPDATE_TITLE,
+  UPDATE_ITEM_NAME,
+  UPDATE_ITEM_PRICE,
 }
 
 type ConfigAction =
   | { type: ConfigActionType.ADD_CONFIG }
   | { type: ConfigActionType.REMOVE_CONFIG; payload: number }
-  | { type: ConfigActionType.ADD_ITEM; payload: { configId: number; item: string } }
+  | { type: ConfigActionType.ADD_ITEM; payload: { configId: number; item: PrintConfigurationItem } }
   | { type: ConfigActionType.REMOVE_ITEM; payload: { configId: number; itemIdx: number } }
-  | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } };
+  | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } }
+  | { type: ConfigActionType.UPDATE_ITEM_NAME; payload: { configId: number; itemIdx: number; name: string } }
+  | { type: ConfigActionType.UPDATE_ITEM_PRICE; payload: { configId: number; itemIdx: number; price: number } };
 
 function configReducer(state: PrintConfiguration[], action: ConfigAction): PrintConfiguration[] {
   switch (action.type) {
@@ -110,6 +124,34 @@ function configReducer(state: PrintConfiguration[], action: ConfigAction): Print
           : config
       );
     
+    case ConfigActionType.UPDATE_ITEM_NAME:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? {
+              ...config,
+              items: config.items.map((item, i) => 
+                i === action.payload.itemIdx
+                  ? { ...item, name: action.payload.name }
+                  : item
+              )
+            }
+          : config
+      );
+    
+    case ConfigActionType.UPDATE_ITEM_PRICE:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? {
+              ...config,
+              items: config.items.map((item, i) => 
+                i === action.payload.itemIdx
+                  ? { ...item, additionalPrice: action.payload.price }
+                  : item
+              )
+            }
+          : config
+      );
+    
     default:
       return state;
   }
@@ -124,11 +166,20 @@ const PRINT_TEMPLATES = [
     configurations: [
       { 
         title: "Paper Type", 
-        items: ["Matte", "Glossy", "Recycled", "Premium"] 
+        items: [
+          { name: "Matte", additionalPrice: 0 },
+          { name: "Glossy", additionalPrice: 5.00 },
+          { name: "Recycled", additionalPrice: 2.50 },
+          { name: "Premium", additionalPrice: 10.00 }
+        ] 
       },
       { 
         title: "Finish", 
-        items: ["Rounded Corners", "Spot UV", "Foil Stamping"] 
+        items: [
+          { name: "Rounded Corners", additionalPrice: 3.00 },
+          { name: "Spot UV", additionalPrice: 8.00 },
+          { name: "Foil Stamping", additionalPrice: 12.00 }
+        ] 
       }
     ]
   },
@@ -139,11 +190,19 @@ const PRINT_TEMPLATES = [
     configurations: [
       { 
         title: "Size", 
-        items: ["A4", "A5", "DL"] 
+        items: [
+          { name: "A4", additionalPrice: 0 },
+          { name: "A5", additionalPrice: 1.50 },
+          { name: "DL", additionalPrice: 2.00 }
+        ] 
       },
       { 
         title: "Coating", 
-        items: ["Gloss", "Matte", "Soft Touch"] 
+        items: [
+          { name: "Gloss", additionalPrice: 3.00 },
+          { name: "Matte", additionalPrice: 4.00 },
+          { name: "Soft Touch", additionalPrice: 6.00 }
+        ] 
       }
     ]
   },
@@ -154,11 +213,19 @@ const PRINT_TEMPLATES = [
     configurations: [
       { 
         title: "Material", 
-        items: ["Photo Paper", "Vinyl", "Canvas"] 
+        items: [
+          { name: "Photo Paper", additionalPrice: 0 },
+          { name: "Vinyl", additionalPrice: 15.00 },
+          { name: "Canvas", additionalPrice: 25.00 }
+        ] 
       },
       { 
         title: "Mounting", 
-        items: ["None", "Foam Board", "Frame"] 
+        items: [
+          { name: "None", additionalPrice: 0 },
+          { name: "Foam Board", additionalPrice: 20.00 },
+          { name: "Frame", additionalPrice: 35.00 }
+        ] 
       }
     ]
   }
@@ -176,7 +243,8 @@ export default function CreateServicePage() {
     handleSubmit, 
     setValue, 
     watch, 
-    formState: { errors } 
+    formState: { errors },
+    setError
   } = useForm<ServiceInputs>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
@@ -268,83 +336,92 @@ export default function CreateServicePage() {
   const applyTemplate = (template: typeof PRINT_TEMPLATES[number]) => {
     setValue("dimensions", template.dimensions);
     setValue("hasFrontBack", template.hasFrontBack);
-    dispatch({ type: ConfigActionType.REMOVE_CONFIG, payload: 0 }); // Clear existing
-    template.configurations.forEach((config, idx) => {
-      if (idx === 0) {
-        dispatch({ type: ConfigActionType.ADD_CONFIG });
-      }
-      setValue(`configurations.${idx}`, config);
-      dispatch({ 
-        type: ConfigActionType.UPDATE_TITLE, 
-        payload: { configId: idx, title: config.title } 
-      });
-      config.items.forEach(item => {
+    
+    // Clear existing configurations
+    while (configs.length > 0) {
+      dispatch({ type: ConfigActionType.REMOVE_CONFIG, payload: 0 });
+    }
+    
+    // Add new configurations from template
+    template.configurations.forEach((config) => {
+      dispatch({ type: ConfigActionType.ADD_CONFIG });
+      
+      setTimeout(() => {
         dispatch({ 
-          type: ConfigActionType.ADD_ITEM, 
-          payload: { configId: idx, item } 
+          type: ConfigActionType.UPDATE_TITLE, 
+          payload: { configId: configs.length, title: config.title } 
         });
-      });
+        
+        config.items.forEach(item => {
+          dispatch({ 
+            type: ConfigActionType.ADD_ITEM, 
+            payload: { 
+              configId: configs.length, 
+              item: { 
+                name: item.name, 
+                additionalPrice: item.additionalPrice 
+              } 
+            } 
+          });
+        });
+      }, 0);
     });
   };
 
   // Form Submission
-// ... existing imports and code above ...
+  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    setLoading(true);
 
-const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-  setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      
+      // Add dimensions as separate fields
+      formData.append("width", data.dimensions.width.toString());
+      formData.append("height", data.dimensions.height.toString());
+      formData.append("unit", data.dimensions.unit);
+      
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
+      
+      // Append the image file
+      if (data.image && data.image.length > 0) {
+        formData.append("thumbnail", data.image[0]);
+      }
 
-  try {
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("price", data.price.toString());
-    formData.append("discount", data.discount.toString());
-    
-    // Add dimensions as separate fields
-    formData.append("width", data.dimensions.width.toString());
-    formData.append("height", data.dimensions.height.toString());
-    formData.append("unit", data.dimensions.unit);
-    
-    formData.append("hasFrontBack", data.hasFrontBack.toString());
-    
-    // Append the image file
-    if (data.image && data.image.length > 0) {
-      formData.append("thumbnail", data.image[0]);
+      // Add configurations as JSON string
+      formData.append("configurations", JSON.stringify(data.configurations));
+
+      // API call to server.lolaprint.us
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getCookie("auth")}`
+        },
+        body: formData
+      });
+
+      const responseData = await response.json(); // Parse JSON response
+      
+      if (!response.ok) {
+        // Use the error message from the backend if available
+        const errorMessage = responseData.message || "Service creation failed";
+        throw new Error(errorMessage);
+      }
+
+      router.push("/services");
+    } catch (error: any) {
+      console.error("Creation error:", error);
+      setError("response", {
+        type: "manual",
+        message: error.message || "There was a problem creating the service"
+      });
+    } finally {
+      setLoading(false);
     }
-
-    // Add configurations as JSON string
-    formData.append("configurations", JSON.stringify(data.configurations));
-
-    // API call to server.lolaprint.us
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getCookie("auth")}`
-      },
-      body: formData
-    });
-
-    const responseData = await response.json(); // Parse JSON response
-    
-    if (!response.ok) {
-      // Use the error message from the backend if available
-      const errorMessage = responseData.message || "Service creation failed";
-      throw new Error(errorMessage);
-    }
-
-    router.push("/services");
-  } catch (error: any) {
-    console.error("Creation error:", error);
-    setError("response", {
-      type: "manual",
-      message: error.message || "There was a problem creating the service"
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
-// ... rest of the component code below ...
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
@@ -617,20 +694,54 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
                     <label className="block text-sm font-medium mb-2">
                       Available Options *
                     </label>
-                    <div className="flex flex-wrap gap-2 mb-3">
+                    <div className="space-y-3 mb-4">
                       {config.items.map((item, itemIdx) => (
                         <div 
                           key={itemIdx}
-                          className="flex items-center bg-gray-600 rounded-full px-3 py-1"
+                          className="flex items-center gap-3"
                         >
-                          <span>{item}</span>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => dispatch({
+                              type: ConfigActionType.UPDATE_ITEM_NAME,
+                              payload: { 
+                                configId, 
+                                itemIdx, 
+                                name: e.target.value 
+                              }
+                            })}
+                            className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Option name"
+                          />
+                          
+                          <div className="flex items-center w-32">
+                            <span className="mr-2">+$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.additionalPrice}
+                              onChange={(e) => dispatch({
+                                type: ConfigActionType.UPDATE_ITEM_PRICE,
+                                payload: { 
+                                  configId, 
+                                  itemIdx, 
+                                  price: parseFloat(e.target.value) || 0 
+                                }
+                              })}
+                              className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          
                           <button
                             type="button"
                             onClick={() => dispatch({
                               type: ConfigActionType.REMOVE_ITEM,
                               payload: { configId, itemIdx }
                             })}
-                            className="ml-2 text-red-400 hover:text-red-300"
+                            className="text-red-400 hover:text-red-300 p-2"
                           >
                             <IoMdRemove />
                           </button>
@@ -641,7 +752,7 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
                     <div className="flex">
                       <input
                         type="text"
-                        placeholder="Add new option..."
+                        placeholder="New option name..."
                         className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -650,7 +761,13 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
                             if (input.value.trim()) {
                               dispatch({
                                 type: ConfigActionType.ADD_ITEM,
-                                payload: { configId, item: input.value.trim() }
+                                payload: { 
+                                  configId, 
+                                  item: { 
+                                    name: input.value.trim(), 
+                                    additionalPrice: 0 
+                                  } 
+                                }
                               });
                               input.value = '';
                             }
@@ -661,11 +778,17 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
                         type="button"
                         className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
                         onClick={() => {
-                          const input = document.querySelector(`input[placeholder="Add new option..."]`) as HTMLInputElement;
+                          const input = document.querySelector(`input[placeholder="New option name..."]`) as HTMLInputElement;
                           if (input?.value.trim()) {
                             dispatch({
                               type: ConfigActionType.ADD_ITEM,
-                              payload: { configId, item: input.value.trim() }
+                              payload: { 
+                                configId, 
+                                item: { 
+                                  name: input.value.trim(), 
+                                  additionalPrice: 0 
+                                } 
+                              }
                             });
                             input.value = '';
                           }
