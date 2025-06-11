@@ -369,64 +369,90 @@ export default function CreateServicePage() {
       }
   
       // Rest of your code remains the same...
-      let thumbnailUrl = '';
-      if (data.image && data.image[0]) {
-        const imageFormData = new FormData();
-        imageFormData.append('file', data.image[0]);
+      // let thumbnailUrl = '';
+      // if (data.image && data.image[0]) {
+      //   const imageFormData = new FormData();
+      //   imageFormData.append('file', data.image[0]);
         
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getCookie("auth")}`
-          },
-          body: imageFormData
-        });
+      //   const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
+      //     method: 'POST',
+      //     headers: {
+      //       Authorization: `Bearer ${getCookie("auth")}`
+      //     },
+      //     body: imageFormData
+      //   });
   
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
-        }
+      //   if (!uploadResponse.ok) {
+      //     throw new Error('Failed to upload image');
+      //   }
         
-        thumbnailUrl = await uploadResponse.text();
-      }
+      //   thumbnailUrl = await uploadResponse.text();
+      // }
   
-      const serviceData = {
-        title: data.title,
-        description: data.description,
-        price: data.price * 100,
-        discount: data.discount,
-        dimensions: JSON.stringify({
-          width: Number(data.dimensions.width),
-          height: Number(data.dimensions.height),
-          unit: data.dimensions.unit
-        }),
-        hasFrontBack: data.hasFrontBack,
-        thumbnail: thumbnailUrl,
-        configurations: {
-          create: data.configurations.map(config => ({
-            title: config.title,
-            items: {
-              create: config.items.map(item => ({
-                name: item.name,
-                additionalPrice: item.additionalPrice
-              }))
-            }
-          }))
-        }
-      };
+      // const serviceData = {
+      //   title: data.title,
+      //   description: data.description,
+      //   price: data.price * 100,
+      //   discount: data.discount,
+      //   dimensions: JSON.stringify({
+      //     width: Number(data.dimensions.width),
+      //     height: Number(data.dimensions.height),
+      //     unit: data.dimensions.unit
+      //   }),
+      //   hasFrontBack: data.hasFrontBack,
+      //   thumbnail: thumbnailUrl,
+      //   configurations: {
+      //     create: data.configurations.map(config => ({
+      //       title: config.title,
+      //       items: {
+      //         create: config.items.map(item => ({
+      //           name: item.name,
+      //           additionalPrice: item.additionalPrice
+      //         }))
+      //       }
+      //     }))
+      //   }
+      // };
+
+      const formData = new FormData();
+
+      console.log(data.price, data.discount);
+
+formData.append("title", data.title);
+formData.append("description", data.description);
+formData.append("price", String(data.price));
+formData.append("discount", String(data.discount));
+formData.append("hasFrontBack", String(data.hasFrontBack));
+formData.append("thumbnail", data.image![0]);
+
+formData.append("dimensions[width]", String(data.dimensions.width));
+formData.append("dimensions[height]", String(data.dimensions.height));
+formData.append("dimensions[unit]", data.dimensions.unit);
+
+// configurations.create[i].title
+// configurations.create[i].items.create[j].name, additionalPrice
+for (let i = 0; i < data.configurations.length; i++) {
+  const config = data.configurations[i];
+
+  formData.append(`configurations[create][${i}][title]`, config.title);
+
+  for (let j = 0; j < config.items.length; j++) {
+    const item = config.items[j];
+    formData.append(`configurations[create][${i}][items][create][${j}][name]`, item.name);
+     formData.append(`configurations[create][${i}][items][create][${j}][additionalPrice]`, String(item.additionalPrice));
+  }
+}
   
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: 'POST',
+        method: 'post',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${getCookie("auth")}`
         },
-        body: JSON.stringify(serviceData)
+        body: formData,
       });
   
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Service creation failed');
+      if (response.status !== 201) {
+        throw new Error('Service creation failed');
       }
   
       router.push('/services');
