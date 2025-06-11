@@ -1,5 +1,6 @@
 "use client";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useState, useReducer, FormEvent, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -267,6 +268,7 @@ export default function CreateServicePage() {
   }, [configs, setValue]);
 
   const watchDimensions = watch("dimensions");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const watchHasFrontBack = watch("hasFrontBack");
   const watchImage = watch("image");
 
@@ -357,7 +359,7 @@ export default function CreateServicePage() {
     setLoading(true);
     
     try {
-      // Validate dimensions first
+
       if (isNaN(data.dimensions.width)) {
         throw new Error("Width must be a valid number");
       }
@@ -367,81 +369,31 @@ export default function CreateServicePage() {
       if (!data.dimensions.unit) {
         throw new Error("Unit must be selected");
       }
-  
-      // Rest of your code remains the same...
-      // let thumbnailUrl = '';
-      // if (data.image && data.image[0]) {
-      //   const imageFormData = new FormData();
-      //   imageFormData.append('file', data.image[0]);
-        
-      //   const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
-      //     method: 'POST',
-      //     headers: {
-      //       Authorization: `Bearer ${getCookie("auth")}`
-      //     },
-      //     body: imageFormData
-      //   });
-  
-      //   if (!uploadResponse.ok) {
-      //     throw new Error('Failed to upload image');
-      //   }
-        
-      //   thumbnailUrl = await uploadResponse.text();
-      // }
-  
-      // const serviceData = {
-      //   title: data.title,
-      //   description: data.description,
-      //   price: data.price * 100,
-      //   discount: data.discount,
-      //   dimensions: JSON.stringify({
-      //     width: Number(data.dimensions.width),
-      //     height: Number(data.dimensions.height),
-      //     unit: data.dimensions.unit
-      //   }),
-      //   hasFrontBack: data.hasFrontBack,
-      //   thumbnail: thumbnailUrl,
-      //   configurations: {
-      //     create: data.configurations.map(config => ({
-      //       title: config.title,
-      //       items: {
-      //         create: config.items.map(item => ({
-      //           name: item.name,
-      //           additionalPrice: item.additionalPrice
-      //         }))
-      //       }
-      //     }))
-      //   }
-      // };
 
       const formData = new FormData();
 
-      console.log(data.price, data.discount);
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", String(data.price));
+      formData.append("discount", String(data.discount));
+      formData.append("hasFrontBack", String(data.hasFrontBack));
+      formData.append("thumbnail", data.image![0]);
 
-formData.append("title", data.title);
-formData.append("description", data.description);
-formData.append("price", String(data.price));
-formData.append("discount", String(data.discount));
-formData.append("hasFrontBack", String(data.hasFrontBack));
-formData.append("thumbnail", data.image![0]);
+      formData.append("dimensions[width]", String(data.dimensions.width));
+      formData.append("dimensions[height]", String(data.dimensions.height));
+      formData.append("dimensions[unit]", data.dimensions.unit);
 
-formData.append("dimensions[width]", String(data.dimensions.width));
-formData.append("dimensions[height]", String(data.dimensions.height));
-formData.append("dimensions[unit]", data.dimensions.unit);
+      for (let i = 0; i < data.configurations.length; i++) {
+        const config = data.configurations[i];
 
-// configurations.create[i].title
-// configurations.create[i].items.create[j].name, additionalPrice
-for (let i = 0; i < data.configurations.length; i++) {
-  const config = data.configurations[i];
+        formData.append(`configurations[create][${i}][title]`, config.title);
 
-  formData.append(`configurations[create][${i}][title]`, config.title);
-
-  for (let j = 0; j < config.items.length; j++) {
-    const item = config.items[j];
-    formData.append(`configurations[create][${i}][items][create][${j}][name]`, item.name);
-     formData.append(`configurations[create][${i}][items][create][${j}][additionalPrice]`, String(item.additionalPrice));
-  }
-}
+        for (let j = 0; j < config.items.length; j++) {
+          const item = config.items[j];
+          formData.append(`configurations[create][${i}][items][create][${j}][name]`, item.name);
+          formData.append(`configurations[create][${i}][items][create][${j}][additionalPrice]`, String(item.additionalPrice));
+        }
+      }
   
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: 'post',
@@ -457,6 +409,7 @@ for (let i = 0; i < data.configurations.length; i++) {
   
       router.push('/services');
       
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Service creation error:', error);
       setError('response', {
