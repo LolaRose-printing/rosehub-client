@@ -8,7 +8,6 @@ import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 
-// Enhanced Type Definitions
 type PrintDimension = {
   width: number;
   height: number;
@@ -37,7 +36,6 @@ type ServiceInputs = {
   response?: string;
 };
 
-// Improved Validation Schema
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
@@ -75,16 +73,17 @@ const serviceSchema = z.object({
   configurations: z.array(configurationSchema).min(1, "At least one configuration is required")
 });
 
-// Configuration Reducer
 enum ConfigActionType {
   ADD_CONFIG,
   REMOVE_CONFIG,
   ADD_ITEM,
   REMOVE_ITEM,
+  LOAD_TEMPLATE_CONFIGS,
   UPDATE_TITLE,
   UPDATE_ITEM_NAME,
   UPDATE_ITEM_PRICE,
-}
+ }
+ 
 
 type ConfigAction =
   | { type: ConfigActionType.ADD_CONFIG }
@@ -93,12 +92,13 @@ type ConfigAction =
   | { type: ConfigActionType.REMOVE_ITEM; payload: { configId: number; itemIdx: number } }
   | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } }
   | { type: ConfigActionType.UPDATE_ITEM_NAME; payload: { configId: number; itemIdx: number; name: string } }
-  | { type: ConfigActionType.UPDATE_ITEM_PRICE; payload: { configId: number; itemIdx: number; price: number } };
+  | { type: ConfigActionType.UPDATE_ITEM_PRICE; payload: { configId: number; itemIdx: number; price: number } }
+  | { type: ConfigActionType.LOAD_TEMPLATE_CONFIGS; payload: PrintConfiguration[] };
 
 function configReducer(state: PrintConfiguration[], action: ConfigAction): PrintConfiguration[] {
   switch (action.type) {
     case ConfigActionType.ADD_CONFIG:
-      return [...state, { title: "", items: [] }];
+      return [...state, { title: "New Option Group", items: [{ name: "New Option", additionalPrice: 0 }] }];
     
     case ConfigActionType.REMOVE_CONFIG:
       return state.filter((_, idx) => idx !== action.payload);
@@ -109,6 +109,10 @@ function configReducer(state: PrintConfiguration[], action: ConfigAction): Print
           ? { ...config, items: [...config.items, action.payload.item] }
           : config
       );
+      
+    case ConfigActionType.LOAD_TEMPLATE_CONFIGS:
+        return action.payload;
+      
     
     case ConfigActionType.REMOVE_ITEM:
       return state.map((config, idx) => 
@@ -157,7 +161,6 @@ function configReducer(state: PrintConfiguration[], action: ConfigAction): Print
   }
 }
 
-// Print Templates for Common Services
 const PRINT_TEMPLATES = [
   {
     name: "Business Card",
@@ -234,7 +237,7 @@ const PRINT_TEMPLATES = [
 export default function CreateServicePage() {
   const router = useRouter();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [configs, dispatch] = useReducer(configReducer, []);
+  const [configs, dispatch] = useReducer(configReducer, [{ title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] }]);
   const [loading, setLoading] = useState(false);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -244,7 +247,8 @@ export default function CreateServicePage() {
     setValue, 
     watch, 
     formState: { errors },
-    setError
+    setError,
+    trigger
   } = useForm<ServiceInputs>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
@@ -254,16 +258,18 @@ export default function CreateServicePage() {
       discount: 0,
       dimensions: { width: 0, height: 0, unit: 'px' },
       hasFrontBack: false,
-      configurations: []
+      configurations: configs
     }
   });
 
-  // Watch values for real-time updates
+  useEffect(() => {
+    setValue("configurations", configs);
+  }, [configs, setValue]);
+
   const watchDimensions = watch("dimensions");
   const watchHasFrontBack = watch("hasFrontBack");
   const watchImage = watch("image");
 
-  // Image Preview Handler with Aspect Ratio Preview
   useEffect(() => {
     if (watchImage?.[0]) {
       const file = watchImage[0];
@@ -276,43 +282,34 @@ export default function CreateServicePage() {
         img.onload = () => {
           setImagePreview(img.src);
           
-          // Create properly scaled preview
           if (previewCanvasRef.current && watchDimensions.width > 0 && watchDimensions.height > 0) {
             const canvas = previewCanvasRef.current;
             const ctx = canvas.getContext('2d');
             
-            // Set canvas to fixed size
             canvas.width = 300;
             canvas.height = 300;
             
             if (ctx) {
-              // Clear canvas
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               
-              // Calculate scaling factors
               const scaleX = canvas.width / watchDimensions.width;
               const scaleY = canvas.height / watchDimensions.height;
               const scale = Math.min(scaleX, scaleY);
               
-              // Calculate new dimensions
               const newWidth = watchDimensions.width * scale;
               const newHeight = watchDimensions.height * scale;
               
-              // Center the image
               const offsetX = (canvas.width - newWidth) / 2;
               const offsetY = (canvas.height - newHeight) / 2;
               
-              // Draw the uploaded image scaled to fit the dimensions
               ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
               
-              // Draw border to show the required dimensions
-              ctx.strokeStyle = '#f87171'; // red-400
+              ctx.strokeStyle = '#f87171';
               ctx.lineWidth = 2;
               ctx.setLineDash([5, 5]);
               ctx.strokeRect(offsetX, offsetY, newWidth, newHeight);
               ctx.setLineDash([]);
               
-              // Add dimension text
               ctx.fillStyle = '#f87171';
               ctx.font = '12px Arial';
               ctx.textAlign = 'center';
@@ -332,91 +329,113 @@ export default function CreateServicePage() {
     }
   }, [watchImage, watchDimensions]);
 
-  // Template Selection
   const applyTemplate = (template: typeof PRINT_TEMPLATES[number]) => {
+    if (!template || !Array.isArray(template.configurations)) {
+      console.error("Invalid template object:", template);
+      return;
+    }
+  
     setValue("dimensions", template.dimensions);
     setValue("hasFrontBack", template.hasFrontBack);
-    
-    // Clear existing configurations
-    while (configs.length > 0) {
-      dispatch({ type: ConfigActionType.REMOVE_CONFIG, payload: 0 });
-    }
-    
-    // Add new configurations from template
-    template.configurations.forEach((config) => {
-      dispatch({ type: ConfigActionType.ADD_CONFIG });
-      
-      setTimeout(() => {
-        dispatch({ 
-          type: ConfigActionType.UPDATE_TITLE, 
-          payload: { configId: configs.length, title: config.title } 
-        });
-        
-        config.items.forEach(item => {
-          dispatch({ 
-            type: ConfigActionType.ADD_ITEM, 
-            payload: { 
-              configId: configs.length, 
-              item: { 
-                name: item.name, 
-                additionalPrice: item.additionalPrice 
-              } 
-            } 
-          });
-        });
-      }, 0);
+  
+    // Batch build of all configs
+    const newConfigs: PrintConfiguration[] = template.configurations.map(config => ({
+      title: config.title,
+      items: [...config.items]
+    }));
+  
+    dispatch({
+      type: ConfigActionType.LOAD_TEMPLATE_CONFIGS,
+      payload: newConfigs
     });
+  
+    trigger(); // validate new form state
   };
-
-  // Form Submission
+  
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    console.log("Submitting service data:", data);
     setLoading(true);
-
+    
     try {
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      
-      // Add dimensions as separate fields
-      formData.append("width", data.dimensions.width.toString());
-      formData.append("height", data.dimensions.height.toString());
-      formData.append("unit", data.dimensions.unit);
-      
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
-      
-      // Append the image file
-      if (data.image && data.image.length > 0) {
-        formData.append("thumbnail", data.image[0]);
+      // Validate dimensions first
+      if (isNaN(data.dimensions.width)) {
+        throw new Error("Width must be a valid number");
       }
-
-      // Add configurations as JSON string
-      formData.append("configurations", JSON.stringify(data.configurations));
-
-      // API call to server.lolaprint.us
+      if (isNaN(data.dimensions.height)) {
+        throw new Error("Height must be a valid number");
+      }
+      if (!data.dimensions.unit) {
+        throw new Error("Unit must be selected");
+      }
+  
+      // Rest of your code remains the same...
+      let thumbnailUrl = '';
+      if (data.image && data.image[0]) {
+        const imageFormData = new FormData();
+        imageFormData.append('file', data.image[0]);
+        
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${getCookie("auth")}`
+          },
+          body: imageFormData
+        });
+  
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
+        }
+        
+        thumbnailUrl = await uploadResponse.text();
+      }
+  
+      const serviceData = {
+        title: data.title,
+        description: data.description,
+        price: data.price * 100,
+        discount: data.discount,
+        dimensions: JSON.stringify({
+          width: Number(data.dimensions.width),
+          height: Number(data.dimensions.height),
+          unit: data.dimensions.unit
+        }),
+        hasFrontBack: data.hasFrontBack,
+        thumbnail: thumbnailUrl,
+        configurations: {
+          create: data.configurations.map(config => ({
+            title: config.title,
+            items: {
+              create: config.items.map(item => ({
+                name: item.name,
+                additionalPrice: item.additionalPrice
+              }))
+            }
+          }))
+        }
+      };
+  
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: "POST",
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${getCookie("auth")}`
         },
-        body: formData
+        body: JSON.stringify(serviceData)
       });
-
-      const responseData = await response.json(); // Parse JSON response
+  
+      const responseData = await response.json();
       
       if (!response.ok) {
-        // Use the error message from the backend if available
-        const errorMessage = responseData.message || "Service creation failed";
-        throw new Error(errorMessage);
+        throw new Error(responseData.message || 'Service creation failed');
       }
-
-      router.push("/services");
+  
+      router.push('/services');
+      
     } catch (error: any) {
-      console.error("Creation error:", error);
-      setError("response", {
-        type: "manual",
-        message: error.message || "There was a problem creating the service"
+      console.error('Service creation error:', error);
+      setError('response', {
+        type: 'manual',
+        message: error.message || 'Failed to create service. Please try again.'
       });
     } finally {
       setLoading(false);
@@ -427,7 +446,6 @@ export default function CreateServicePage() {
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Create New Print Service</h1>
       
-      {/* Print Templates Section */}
       <div className="mb-8 p-4 bg-gray-800 rounded-lg">
         <h2 className="text-lg font-semibold mb-4">Quick Templates</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -449,7 +467,6 @@ export default function CreateServicePage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Service Info Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -477,7 +494,6 @@ export default function CreateServicePage() {
           </div>
         </div>
 
-        {/* Pricing Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -486,6 +502,7 @@ export default function CreateServicePage() {
             <input
               type="number"
               step="0.01"
+              min="0.01"
               {...register("price", { valueAsNumber: true })}
               className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="0.00"
@@ -500,6 +517,7 @@ export default function CreateServicePage() {
             <input
               type="number"
               step="0.01"
+              min="0"
               {...register("discount", { valueAsNumber: true })}
               className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="0.00"
@@ -519,7 +537,6 @@ export default function CreateServicePage() {
           </div>
         </div>
 
-        {/* Print Dimensions */}
         <div className="p-4 bg-gray-800 rounded-lg">
           <h2 className="text-lg font-semibold mb-4">Print Dimensions *</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -527,6 +544,7 @@ export default function CreateServicePage() {
               <label className="block text-sm font-medium mb-2">Width</label>
               <input
                 type="number"
+                min="1"
                 {...register("dimensions.width", { valueAsNumber: true })}
                 className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="e.g., 1050"
@@ -537,6 +555,7 @@ export default function CreateServicePage() {
               <label className="block text-sm font-medium mb-2">Height</label>
               <input
                 type="number"
+                min="1"
                 {...register("dimensions.height", { valueAsNumber: true })}
                 className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="e.g., 600"
@@ -577,7 +596,6 @@ export default function CreateServicePage() {
           )}
         </div>
 
-        {/* Image Upload with Preview */}
         <div className="p-4 bg-gray-800 rounded-lg">
           <h2 className="text-lg font-semibold mb-4">Service Image *</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -640,7 +658,6 @@ export default function CreateServicePage() {
           </div>
         </div>
 
-        {/* Print Configurations */}
         <div className="p-4 bg-gray-800 rounded-lg">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Print Options *</h2>
@@ -757,7 +774,7 @@ export default function CreateServicePage() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            const input = e.currentTarget as HTMLInputElement;
+                            const input = e.currentTarget;
                             if (input.value.trim()) {
                               dispatch({
                                 type: ConfigActionType.ADD_ITEM,
@@ -777,8 +794,8 @@ export default function CreateServicePage() {
                       <button
                         type="button"
                         className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
-                        onClick={() => {
-                          const input = document.querySelector(`input[placeholder="New option name..."]`) as HTMLInputElement;
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                           if (input?.value.trim()) {
                             dispatch({
                               type: ConfigActionType.ADD_ITEM,
@@ -805,7 +822,6 @@ export default function CreateServicePage() {
           {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
         </div>
 
-        {/* Submit Section */}
         <div className="flex justify-center pt-6">
           <button
             type="submit"
