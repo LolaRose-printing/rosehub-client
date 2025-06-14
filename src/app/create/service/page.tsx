@@ -208,7 +208,8 @@ const PRINT_TEMPLATES = [
         items: [
           { name: "Half Fold", additionalPrice: 5.00 },
           { name: "Tri-Fold", additionalPrice: 7.00 },
-          { name: "Z-Fold", additionalPrice: 8.00 }
+          { name: "Z-Fold", additionalPrice: 8.00 },
+          { name: "Gate Fold", additionalPrice: 9.00 }
         ] 
       }
     ]
