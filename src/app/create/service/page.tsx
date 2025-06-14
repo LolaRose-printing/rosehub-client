@@ -1,6 +1,5 @@
 "use client";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useState, useReducer, FormEvent, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -34,6 +33,7 @@ type ServiceInputs = {
   dimensions: PrintDimension;
   hasFrontBack: boolean;
   configurations: PrintConfiguration[];
+  category: 'brochure' | 'booklet' | 'other';
   response?: string;
 };
 
@@ -71,7 +71,8 @@ const serviceSchema = z.object({
     ),
   dimensions: dimensionSchema,
   hasFrontBack: z.boolean(),
-  configurations: z.array(configurationSchema).min(1, "At least one configuration is required")
+  configurations: z.array(configurationSchema).min(1, "At least one configuration is required"),
+  category: z.enum(['brochure', 'booklet', 'other']).default('other')
 });
 
 enum ConfigActionType {
@@ -83,7 +84,7 @@ enum ConfigActionType {
   UPDATE_TITLE,
   UPDATE_ITEM_NAME,
   UPDATE_ITEM_PRICE,
- }
+}
  
 
 type ConfigAction =
@@ -167,6 +168,7 @@ const PRINT_TEMPLATES = [
     name: "Business Card",
     dimensions: { width: 1050, height: 600, unit: 'px' as const },
     hasFrontBack: true,
+    category: 'other' as const,
     configurations: [
       { 
         title: "Paper Type", 
@@ -188,47 +190,48 @@ const PRINT_TEMPLATES = [
     ]
   },
   {
-    name: "Flyer",
+    name: "Brochure",
     dimensions: { width: 1275, height: 1650, unit: 'px' as const },
     hasFrontBack: false,
+    category: 'brochure' as const,
     configurations: [
       { 
-        title: "Size", 
+        title: "Paper Quality", 
         items: [
-          { name: "A4", additionalPrice: 0 },
-          { name: "A5", additionalPrice: 1.50 },
-          { name: "DL", additionalPrice: 2.00 }
+          { name: "Standard", additionalPrice: 0 },
+          { name: "Premium", additionalPrice: 15.00 },
+          { name: "Glossy", additionalPrice: 10.00 }
         ] 
       },
       { 
-        title: "Coating", 
+        title: "Folding", 
         items: [
-          { name: "Gloss", additionalPrice: 3.00 },
-          { name: "Matte", additionalPrice: 4.00 },
-          { name: "Soft Touch", additionalPrice: 6.00 }
+          { name: "Half Fold", additionalPrice: 5.00 },
+          { name: "Tri-Fold", additionalPrice: 7.00 },
+          { name: "Z-Fold", additionalPrice: 8.00 }
         ] 
       }
     ]
   },
   {
-    name: "Poster",
+    name: "Booklet",
     dimensions: { width: 1800, height: 2400, unit: 'px' as const },
     hasFrontBack: false,
+    category: 'booklet' as const,
     configurations: [
       { 
-        title: "Material", 
+        title: "Binding", 
         items: [
-          { name: "Photo Paper", additionalPrice: 0 },
-          { name: "Vinyl", additionalPrice: 15.00 },
-          { name: "Canvas", additionalPrice: 25.00 }
+          { name: "Saddle Stitch", additionalPrice: 0 },
+          { name: "Perfect Binding", additionalPrice: 20.00 },
+          { name: "Spiral Binding", additionalPrice: 15.00 }
         ] 
       },
       { 
-        title: "Mounting", 
+        title: "Cover", 
         items: [
-          { name: "None", additionalPrice: 0 },
-          { name: "Foam Board", additionalPrice: 20.00 },
-          { name: "Frame", additionalPrice: 35.00 }
+          { name: "Soft Cover", additionalPrice: 0 },
+          { name: "Hard Cover", additionalPrice: 25.00 }
         ] 
       }
     ]
@@ -259,7 +262,8 @@ export default function CreateServicePage() {
       discount: 0,
       dimensions: { width: 0, height: 0, unit: 'px' },
       hasFrontBack: false,
-      configurations: configs
+      configurations: configs,
+      category: 'other'
     }
   });
 
@@ -268,9 +272,9 @@ export default function CreateServicePage() {
   }, [configs, setValue]);
 
   const watchDimensions = watch("dimensions");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const watchHasFrontBack = watch("hasFrontBack");
   const watchImage = watch("image");
+  const watchCategory = watch("category");
 
   useEffect(() => {
     if (watchImage?.[0]) {
@@ -339,6 +343,7 @@ export default function CreateServicePage() {
   
     setValue("dimensions", template.dimensions);
     setValue("hasFrontBack", template.hasFrontBack);
+    setValue("category", template.category);
   
     // Batch build of all configs
     const newConfigs: PrintConfiguration[] = template.configurations.map(config => ({
@@ -359,7 +364,7 @@ export default function CreateServicePage() {
     setLoading(true);
     
     try {
-
+      // Validate dimensions first
       if (isNaN(data.dimensions.width)) {
         throw new Error("Width must be a valid number");
       }
@@ -369,47 +374,71 @@ export default function CreateServicePage() {
       if (!data.dimensions.unit) {
         throw new Error("Unit must be selected");
       }
-
-      const formData = new FormData();
-
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", String(data.price));
-      formData.append("discount", String(data.discount));
-      formData.append("hasFrontBack", String(data.hasFrontBack));
-      formData.append("thumbnail", data.image![0]);
-
-      formData.append("dimensions[width]", String(data.dimensions.width));
-      formData.append("dimensions[height]", String(data.dimensions.height));
-      formData.append("dimensions[unit]", data.dimensions.unit);
-
-      for (let i = 0; i < data.configurations.length; i++) {
-        const config = data.configurations[i];
-
-        formData.append(`configurations[create][${i}][title]`, config.title);
-
-        for (let j = 0; j < config.items.length; j++) {
-          const item = config.items[j];
-          formData.append(`configurations[create][${i}][items][create][${j}][name]`, item.name);
-          formData.append(`configurations[create][${i}][items][create][${j}][additionalPrice]`, String(item.additionalPrice));
+  
+      // Rest of your code remains the same...
+      let thumbnailUrl = '';
+      if (data.image && data.image[0]) {
+        const imageFormData = new FormData();
+        imageFormData.append('file', data.image[0]);
+        
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${getCookie("auth")}`
+          },
+          body: imageFormData
+        });
+  
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
         }
+        
+        thumbnailUrl = await uploadResponse.text();
       }
   
+      const serviceData = {
+        title: data.title,
+        description: data.description,
+        price: data.price * 100,
+        discount: data.discount,
+        dimensions: JSON.stringify({
+          width: Number(data.dimensions.width),
+          height: Number(data.dimensions.height),
+          unit: data.dimensions.unit
+        }),
+        hasFrontBack: data.hasFrontBack,
+        thumbnail: thumbnailUrl,
+        category: data.category,
+        configurations: {
+          create: data.configurations.map(config => ({
+            title: config.title,
+            items: {
+              create: config.items.map(item => ({
+                name: item.name,
+                additionalPrice: item.additionalPrice
+              }))
+            }
+          }))
+        }
+      };
+  
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: 'post',
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${getCookie("auth")}`
         },
-        body: formData,
+        body: JSON.stringify(serviceData)
       });
   
-      if (response.status !== 201) {
-        throw new Error('Service creation failed');
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Service creation failed');
       }
   
       router.push('/services');
       
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Service creation error:', error);
       setError('response', {
@@ -473,7 +502,7 @@ export default function CreateServicePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">
               Base Price ($) *
@@ -502,6 +531,21 @@ export default function CreateServicePage() {
               placeholder="0.00"
             />
             {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Category *
+            </label>
+            <select
+              {...register("category")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="other">Other</option>
+              <option value="brochure">Brochure</option>
+              <option value="booklet">Booklet</option>
+            </select>
+            {errors.category && <p className="text-red-400 text-sm mt-1">{errors.category.message}</p>}
           </div>
           
           <div className="flex items-end">
