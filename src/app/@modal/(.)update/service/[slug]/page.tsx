@@ -1,346 +1,965 @@
 "use client";
 
-
-import { Service } from "@/types/service";
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
+import { useState, useReducer, FormEvent, useRef, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getCookie } from "cookies-next";
-import { useRouter } from "next/navigation";
-import { Fragment, use, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
+import { getCookie } from "cookies-next";
+import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 
-type Params = {
-  slug: string;
+type PrintDimension = {
+  width: number;
+  height: number;
+  unit: 'px' | 'in' | 'cm';
 };
 
-type Inputs = {
+type PrintConfigurationItem = {
+  id?: number;
+  name: string;
+  additionalPrice: number;
+};
+
+type PrintConfiguration = {
+  id?: number;
+  title: string;
+  items: PrintConfigurationItem[];
+};
+
+type ServiceInputs = {
+  id?: number;
   title: string;
   description: string;
-  price: string;
-  discount: string;
+  price: number;
+  discount: number;
+  image?: FileList;
+  dimensions: PrintDimension;
+  hasFrontBack: boolean;
+  configurations: PrintConfiguration[];
+  category: 'brochure' | 'booklet' | 'other';
   response?: string;
+  thumbnail?: string;
 };
 
-const schema = z.object({
-  title: z.string().min(1, { message: "This field is required" }),
-  description: z.string().min(1, { message: "This field is required" }),
-  price: z.string().min(1, { message: "This field is required" }),
-  discount: z.string().min(1, { message: "This field is required" }),
-  response: z.string().optional(),
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const dimensionSchema = z.object({
+  width: z.number().min(1, "Width must be at least 1"),
+  height: z.number().min(1, "Height must be at least 1"),
+  unit: z.enum(['px', 'in', 'cm'])
 });
 
-const Modal = ({ params }: { params: Promise<Params> }) => {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const { slug } = use(params);
-  const [service, setService] = useState<Service>();
-  // const [configurationsComponents, setConfigurationsComponents] = useState<ConfigurationComponent[]>([]);
-  // const service = use(getService(slug));
+const configurationItemSchema = z.object({
+  name: z.string().min(1, "Option name is required"),
+  additionalPrice: z.number().min(0, "Price cannot be negative").default(0)
+});
 
+const configurationSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  items: z.array(configurationItemSchema).min(1, "At least one item is required")
+});
 
-  const { register, setError, handleSubmit, formState: { errors } } = useForm<Inputs>({
-    defaultValues: {
-      title: service?.title,
-      description: service?.description,
-      price: service?.price,
-      discount: service?.discount,
-      response: undefined,
-    },
-    mode: "onChange",
-    shouldUnregister: true,
-    resolver: zodResolver(schema),
-  });
+const editServiceSchema = z.object({
+  title: z.string().min(1, "Service title is required"),
+  description: z.string().min(1, "Description is required"),
+  price: z.number().min(0.01, "Price must be at least $0.01"),
+  discount: z.number().min(0, "Discount cannot be negative"),
+  image: z
+    .any()
+    .optional()
+    .refine(file => !file || file.length === 0 || (file.length === 1 && file[0]?.size <= MAX_FILE_SIZE), "Max file size is 15MB")
+    .refine(
+      file => !file || file.length === 0 || ALLOWED_IMAGE_TYPES.includes(file[0]?.type),
+      "Only JPG, JPEG, PNG and WEBP formats are allowed"
+    ),
+  dimensions: dimensionSchema,
+  hasFrontBack: z.boolean(),
+  configurations: z.array(configurationSchema).min(1, "At least one configuration is required"),
+  category: z.enum(['brochure', 'booklet', 'other']).default('other')
+});
 
-  // const reducer = (state: State, action: Action) => {
-  //   switch (action.type) {
-  //     case Type.Insert:
-  //       setValue("configuration", [...state.configurations, action.payload]);
-  //       return {
-  //         ...state,
-  //         configurations: [...state.configurations, action.payload],
-  //       };
-  //     case Type.Delete:
-  //       const removedComponent = configurationsComponents.filter(el => el.id !== action.payload);
-  //       setConfigurationsComponents([...removedComponent]);
+enum ConfigActionType {
+  ADD_CONFIG,
+  REMOVE_CONFIG,
+  ADD_ITEM,
+  REMOVE_ITEM,
+  SET_CONFIGS,
+  UPDATE_TITLE,
+  UPDATE_ITEM_NAME,
+  UPDATE_ITEM_PRICE,
+}
 
-  //       const removed = state.configurations.filter(el => el.id !== action.payload);
-  //       setValue("configuration", [...removed]);
-  //       return {
-  //         ...state,
-  //         configurations: [...removed],
-  //       };
-  //     default:
-  //       throw Error("Unknown action.");
-  //   }
-  // }
+type ConfigAction =
+  | { type: ConfigActionType.ADD_CONFIG }
+  | { type: ConfigActionType.REMOVE_CONFIG; payload: number }
+  | { type: ConfigActionType.ADD_ITEM; payload: { configId: number; item: PrintConfigurationItem } }
+  | { type: ConfigActionType.REMOVE_ITEM; payload: { configId: number; itemIdx: number } }
+  | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } }
+  | { type: ConfigActionType.UPDATE_ITEM_NAME; payload: { configId: number; itemIdx: number; name: string } }
+  | { type: ConfigActionType.UPDATE_ITEM_PRICE; payload: { configId: number; itemIdx: number; price: number } }
+  | { type: ConfigActionType.SET_CONFIGS; payload: PrintConfiguration[] };
 
-  // const initialState = {
-  //   configurations: service?.configurations || [],
-  // };
-  // const [state, dispatch] = useReducer(reducer, initialState);
-
-  useEffect(() => {
-    const fetchService = async (): Promise<Service> => {
-       const token = getCookie("auth");
-        const headers = new Headers({
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization:`Bearer ${token}`,
-        });
-        const requestInit: RequestInit = {
-          headers,
-          cache: "no-store",
-          method: "get",
-          mode: "cors",
-        };
-        const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${slug}`);
-        const request = new Request(url, requestInit);
-        const response = await fetch(request);
-        const service = await response.json();
-
-        return service;
-    };
-
-    fetchService()
-      .then((service: Service) => setService(service))
-      .catch(error => console.error(error));
-        
-      //   service?.configurations.map(configuration => {
-      //     setConfigurationsComponents(prevItem => [
-      //       ...prevItem,
-      //       {
-      //         id: configuration.id,
-      //         component: <ConfigurationComponent
-      //           key={configuration.id}
-      //           configurationState={{
-      //             id: configuration.id,
-      //             items: configuration.items,
-      //             isOnConfiguration: true,
-      //             dispatch,
-      //             errors,
-      //           }} />,
-      //       },
-      //     ]);
-      //   });    
-      // })
-      // .catch(error => console.error(error));
-  }, [slug, errors]);
-
-  if (!service) return;
-
-  // const addConfiguration = (evt: MouseEvent<HTMLButtonElement>) => {
-  //     evt.preventDefault();
-  //     evt.stopPropagation();
-  //     const max = Math.max(...configurationsComponents.map(conf => conf.id));
-  //     setConfigurationsComponents(prev => [
-  //       ...prev,
-  //       {
-  //         id: max + 1,
-  //         component: <ConfigurationComponent
-  //           key={max + 1}
-  //           configurationState={{
-  //             id: max + 1,
-  //             items: [],
-  //             isOnConfiguration: false,
-  //             dispatch, errors,
-  //           }} />,
-  //       },
-  //     ]);
-  // }
-
-  const onSubmit: SubmitHandler<Inputs> = async (data: Inputs) => {
-      setLoading(true);
-      try {
-        // const formData = new FormData();
-        // formData.append("title", data.title);
-        // formData.append("description", data.description);
-        // formData.append("price", data.price);
-        // formData.append("discount", data.discount);
-        // if (data.image) {
-        //   formData.append("thumbnail", data.image[0]);
-        // }
-  
-        // for (let i = 0; i < state.configurations.length; i++) {
-        //   formData.append(`configurations[${i}][title]`, state.configurations[i].title);
-        //   for (let j = 0; j < state.configurations[i].items.length; j++) {
-        //     formData.append(`configurations[${i}][items][${j}]`, state.configurations[i].items[j]);
-        //   }
-        // }
-  
-        const headers = new Headers({
-          "Content-Type": "application/json",
-          Authorization:`Bearer ${await getCookie("auth")}`,
-        });
-        const requestInit: RequestInit = {
-          headers,
-          method: "put",
-          cache: "no-store",
-          mode: "cors",
-          body: JSON.stringify(data),
-        };
-        const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`);
-        const request = new Request(url, requestInit);
-        const response = await fetch(request);
-
-        if (response.status !== 200) {
-          setError("response", {
-            message: "There was a problem trying to update.",
-          });
-          return;
-        }
-  
-        router.refresh();
-        router.back();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (error: unknown) {
-        throw Error("There was a problem trying to create a service.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-  if (typeof window === "object") {
-    return createPortal(
-      <div>
-        <Transition
-          appear={true}
-          show={true}
-          as={Fragment}
-        >
-          <Dialog
-            as="div"
-            className="relative z-10"
-            onClose={() => router.back()}
-          >
-            <TransitionChild
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black/25" />
-            </TransitionChild>
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4">
-                <TransitionChild
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <DialogPanel className="shadow-2xl bg-gray-900 text-gray-100 w-full max-w-xl transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-xl transition-all text-center">
-                    <DialogTitle
-                      as="h3"
-                      className="text-lg font-medium leading-6 text-white-900 text-center m-auto justify-center items-center"
-                    >
-                      <span className="font-bold">Update Service {service.title}</span>
-                    </DialogTitle>
-                    <form className="space-y-6">
-                      <div className="text-center">
-                        <div>
-                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-100">Title</label>
-                        </div>
-                        <div>
-                          <input id="title" type="text" autoComplete="title" defaultValue={service.title} className="px-2 w-full max-w-82 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("title", { required: true })} />
-                        </div>
-                        <div className="mt-2">
-                          {errors.title && <span>{errors.title.message}</span>}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div>
-                          <label htmlFor="title" className="block text-sm font-medium leading-6 text-gray-100">Description</label>
-                        </div>
-                        <div>
-                          <textarea
-                            defaultValue={service.description} {...register("description", { required: true })}
-                            className="shadow appearance-none border rounded px-2 w-full max-w-82 py-2 px-3 text-gray-900 leading-tight focus:outline-none focus:shadow-outline bg-[#79889e]"
-                            rows={5}
-                          ></textarea>
-                        </div>
-                        <div className="mt-2">
-                          {errors.description && <span>{errors.description.message}</span>}
-                        </div>
-                      </div>
-                      <div className="flex flex-row gap-6 justify-center">
-                        <div className="text-center">
-                        <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price ($)</label>
-                        </div>
-                        <div>
-                          <input id="price" type="text" autoComplete="price" defaultValue={+service.price / 100} className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
-                        </div>
-                        <div className="mt-2">
-                          {errors.price && <span>{errors.price.message}</span>}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount ($)</label>
-                        </div>
-                        <div>
-                          <input id="discount" type="text" defaultValue={+service.discount / 100} autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
-                        </div>
-                        <div className="mt-2">
-                          {errors.discount && <span>{errors.discount.message}</span>}
-                        </div>
-                      </div>
-                      </div>
-                      <div className="text-center justify-center items-center m-auto">
-                        <div>
-                          <label htmlFor="configuration" className="block text-sm font-medium leading-6 text-gray-100">Configuration</label>
-                        </div>
-                        {/* <div>
-                          {configurationsComponents.map((configuration, i) => {
-                            return (
-                              <div key={i} className="bg-gray-700 my-3 rounded py-3">
-                                {configuration.component}
-                              </div>
-                            );
-                          })}
-                        </div> */}
-                        {/* <div>
-                          <button
-                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-800 rounded-lg shadow-md px-6 py-3 max-w-52 m-auto" onClick={addConfiguration}>
-                            <IoMdAdd />
-                          </button>
-                          <div className="mt-2">
-                            {errors.configuration && <span>{errors.configuration.message}</span>}
-                          </div>
-                        </div>
-                        <div className="my-8 text-center">
-                          {errors.response && <span>{errors.response.message}</span>}
-                        </div> */}
-                        <div>
-                          <button
-                            type="submit"
-                            className="flex flex-row gap-2 items-center justify-center mt-6 bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-3 w-full max-w-52 m-auto"
-                            onClick={handleSubmit(onSubmit)}
-                            disabled={loading}
-                          >
-                            <span>Update</span>
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </DialogPanel>
-                </TransitionChild>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
-      </div>,
-      document.getElementById("modal-root") as HTMLElement,
-    );
+function configReducer(state: PrintConfiguration[], action: ConfigAction): PrintConfiguration[] {
+  switch (action.type) {
+    case ConfigActionType.ADD_CONFIG:
+      return [...state, { title: "New Option Group", items: [{ name: "New Option", additionalPrice: 0 }] }];
+    
+    case ConfigActionType.REMOVE_CONFIG:
+      return state.filter((_, idx) => idx !== action.payload);
+    
+    case ConfigActionType.ADD_ITEM:
+      return state.map((config, idx) => 
+        idx === action.payload.configId 
+          ? { ...config, items: [...config.items, action.payload.item] }
+          : config
+      );
+      
+    case ConfigActionType.SET_CONFIGS:
+        return action.payload;
+      
+    case ConfigActionType.REMOVE_ITEM:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? { ...config, items: config.items.filter((_, i) => i !== action.payload.itemIdx) }
+          : config
+      );
+    
+    case ConfigActionType.UPDATE_TITLE:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? { ...config, title: action.payload.title }
+          : config
+      );
+    
+    case ConfigActionType.UPDATE_ITEM_NAME:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? {
+              ...config,
+              items: config.items.map((item, i) => 
+                i === action.payload.itemIdx
+                  ? { ...item, name: action.payload.name }
+                  : item
+              )
+            }
+          : config
+      );
+    
+    case ConfigActionType.UPDATE_ITEM_PRICE:
+      return state.map((config, idx) => 
+        idx === action.payload.configId
+          ? {
+              ...config,
+              items: config.items.map((item, i) => 
+                i === action.payload.itemIdx
+                  ? { ...item, additionalPrice: action.payload.price }
+                  : item
+              )
+            }
+          : config
+      );
+    
+    default:
+      return state;
   }
 }
 
-export default Modal;
+const PRINT_TEMPLATES = [
+  {
+    name: "Business Card",
+    dimensions: { width: 1050, height: 600, unit: 'px' as const },
+    hasFrontBack: true,
+    category: 'other' as const,
+    configurations: [
+      { 
+        title: "Paper Type", 
+        items: [
+          { name: "Matte", additionalPrice: 0 },
+          { name: "Glossy", additionalPrice: 5.00 },
+          { name: "Recycled", additionalPrice: 2.50 },
+          { name: "Premium", additionalPrice: 10.00 }
+        ] 
+      },
+      { 
+        title: "Finish", 
+        items: [
+          { name: "Rounded Corners", additionalPrice: 3.00 },
+          { name: "Spot UV", additionalPrice: 8.00 },
+          { name: "Foil Stamping", additionalPrice: 12.00 }
+        ] 
+      }
+    ]
+  },
+  {
+    name: "Brochure",
+    dimensions: { width: 1275, height: 1650, unit: 'px' as const },
+    hasFrontBack: false,
+    category: 'brochure' as const,
+    configurations: [
+      { 
+        title: "Paper Quality", 
+        items: [
+          { name: "Standard", additionalPrice: 0 },
+          { name: "Premium", additionalPrice: 15.00 },
+          { name: "Glossy", additionalPrice: 10.00 }
+        ] 
+      },
+      { 
+        title: "Folding", 
+        items: [
+          { name: "Half Fold", additionalPrice: 5.00 },
+          { name: "Tri-Fold", additionalPrice: 7.00 },
+          { name: "Z-Fold", additionalPrice: 8.00 },
+          { name: "Gate Fold", additionalPrice: 9.00 }
+        ] 
+      }
+    ]
+  },
+  {
+    name: "Booklet",
+    dimensions: { width: 1800, height: 2400, unit: 'px' as const },
+    hasFrontBack: false,
+    category: 'booklet' as const,
+    configurations: [
+      { 
+        title: "Binding", 
+        items: [
+          { name: "Saddle Stitch", additionalPrice: 0 },
+          { name: "Perfect Binding", additionalPrice: 20.00 },
+          { name: "Spiral Binding", additionalPrice: 15.00 }
+        ] 
+      },
+      { 
+        title: "Cover", 
+        items: [
+          { name: "Soft Cover", additionalPrice: 0 },
+          { name: "Hard Cover", additionalPrice: 25.00 }
+        ] 
+      }
+    ]
+  }
+];
+
+export default function EditServicePage() {
+  const router = useRouter();
+  const { id } = useParams();
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [configs, dispatch] = useReducer(configReducer, []);
+  const [loading, setLoading] = useState(true);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [service, setService] = useState<ServiceInputs | null>(null);
+  
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    watch, 
+    formState: { errors },
+    setError,
+    trigger
+  } = useForm<ServiceInputs>({
+    resolver: zodResolver(editServiceSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      price: 0,
+      discount: 0,
+      dimensions: { width: 0, height: 0, unit: 'px' },
+      hasFrontBack: false,
+      configurations: [],
+      category: 'other'
+    }
+  });
+
+  // Fetch service data
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const token = getCookie("auth");
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch service");
+
+        const data = await response.json();
+        
+        // Transform data for form
+        const serviceData = {
+          ...data,
+          price: data.price / 100, // Convert from cents to dollars
+          discount: data.discount,
+          dimensions: JSON.parse(data.dimensions),
+          thumbnail: data.thumbnail,
+          configurations: data.configurations.map((config: any) => ({
+            ...config,
+            items: config.items.map((item: any) => ({
+              ...item
+            }))
+          }))
+        };
+
+        setService(serviceData);
+        setValue("title", serviceData.title);
+        setValue("description", serviceData.description);
+        setValue("price", serviceData.price);
+        setValue("discount", serviceData.discount);
+        setValue("dimensions", serviceData.dimensions);
+        setValue("hasFrontBack", serviceData.hasFrontBack);
+        setValue("category", serviceData.category);
+        setValue("thumbnail", serviceData.thumbnail);
+        setImagePreview(serviceData.thumbnail);
+
+        // Set configurations
+        dispatch({
+          type: ConfigActionType.SET_CONFIGS,
+          payload: serviceData.configurations
+        });
+
+      } catch (error) {
+        console.error("Error fetching service:", error);
+        setError('response', {
+          type: 'manual',
+          message: 'Failed to load service data'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchService();
+  }, [id, setValue, setError]);
+
+  useEffect(() => {
+    setValue("configurations", configs);
+  }, [configs, setValue]);
+
+  const watchDimensions = watch("dimensions");
+  const watchHasFrontBack = watch("hasFrontBack");
+  const watchImage = watch("image");
+  const watchCategory = watch("category");
+
+  useEffect(() => {
+    if (watchImage?.[0]) {
+      const file = watchImage[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        
+        img.onload = () => {
+          setImagePreview(img.src);
+          
+          if (previewCanvasRef.current && watchDimensions.width > 0 && watchDimensions.height > 0) {
+            const canvas = previewCanvasRef.current;
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = 300;
+            canvas.height = 300;
+            
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              
+              const scaleX = canvas.width / watchDimensions.width;
+              const scaleY = canvas.height / watchDimensions.height;
+              const scale = Math.min(scaleX, scaleY);
+              
+              const newWidth = watchDimensions.width * scale;
+              const newHeight = watchDimensions.height * scale;
+              
+              const offsetX = (canvas.width - newWidth) / 2;
+              const offsetY = (canvas.height - newHeight) / 2;
+              
+              ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
+              
+              ctx.strokeStyle = '#f87171';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]);
+              ctx.strokeRect(offsetX, offsetY, newWidth, newHeight);
+              ctx.setLineDash([]);
+              
+              ctx.fillStyle = '#f87171';
+              ctx.font = '12px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText(
+                `${watchDimensions.width}×${watchDimensions.height}${watchDimensions.unit}`, 
+                canvas.width / 2, 
+                offsetY + newHeight + 20
+              );
+            }
+          }
+        };
+      };
+      
+      reader.readAsDataURL(file);
+    } else if (service?.thumbnail) {
+      setImagePreview(service.thumbnail);
+    } else {
+      setImagePreview(null);
+    }
+  }, [watchImage, watchDimensions, service]);
+
+  const applyTemplate = (template: typeof PRINT_TEMPLATES[number]) => {
+    if (!template || !Array.isArray(template.configurations)) {
+      console.error("Invalid template object:", template);
+      return;
+    }
+  
+    setValue("dimensions", template.dimensions);
+    setValue("hasFrontBack", template.hasFrontBack);
+    setValue("category", template.category);
+  
+    // Batch build of all configs
+    const newConfigs: PrintConfiguration[] = template.configurations.map(config => ({
+      title: config.title,
+      items: [...config.items]
+    }));
+  
+    dispatch({
+      type: ConfigActionType.SET_CONFIGS,
+      payload: newConfigs
+    });
+  
+    trigger(); // validate new form state
+  };
+  
+  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    setLoading(true);
+    
+    try {
+      // Validate dimensions
+      if (isNaN(data.dimensions.width) || isNaN(data.dimensions.height)) {
+        throw new Error("Invalid dimensions");
+      }
+
+      let thumbnailUrl = service?.thumbnail || '';
+      
+      // Upload new image if provided
+      if (data.image && data.image[0]) {
+        const imageFormData = new FormData();
+        imageFormData.append('file', data.image[0]);
+        
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${getCookie("auth")}`
+          },
+          body: imageFormData
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
+        }
+        
+        thumbnailUrl = await uploadResponse.text();
+      }
+
+      const serviceData = {
+        title: data.title,
+        description: data.description,
+        price: data.price * 100, // Convert to cents
+        discount: data.discount,
+        dimensions: JSON.stringify({
+          width: Number(data.dimensions.width),
+          height: Number(data.dimensions.height),
+          unit: data.dimensions.unit
+        }),
+        hasFrontBack: data.hasFrontBack,
+        thumbnail: thumbnailUrl,
+        category: data.category,
+        configurations: {
+          upsert: data.configurations.map(config => ({
+            where: { id: config.id || -1 },
+            create: {
+              title: config.title,
+              items: {
+                create: config.items.filter(item => !item.id).map(item => ({
+                  name: item.name,
+                  additionalPrice: item.additionalPrice
+                }))
+              }
+            },
+            update: {
+              title: config.title,
+              items: {
+                upsert: config.items.map(item => ({
+                  where: { id: item.id || -1 },
+                  create: {
+                    name: item.name,
+                    additionalPrice: item.additionalPrice
+                  },
+                  update: {
+                    name: item.name,
+                    additionalPrice: item.additionalPrice
+                  }
+                }))
+              }
+            }
+          }))
+        }
+      };
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getCookie("auth")}`
+        },
+        body: JSON.stringify(serviceData)
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Service update failed');
+      }
+
+      router.push('/services');
+      
+    } catch (error: any) {
+      console.error('Service update error:', error);
+      setError('response', {
+        type: 'manual',
+        message: error.message || 'Failed to update service. Please try again.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !service) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
+      <h1 className="text-2xl font-bold text-center mb-8">Edit Print Service</h1>
+      
+      <div className="mb-8 p-4 bg-gray-800 rounded-lg">
+        <h2 className="text-lg font-semibold mb-4">Quick Templates</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PRINT_TEMPLATES.map((template, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => applyTemplate(template)}
+              className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md transition"
+            >
+              <h3 className="font-medium">{template.name}</h3>
+              <p className="text-sm text-gray-300">
+                {template.dimensions.width}×{template.dimensions.height}{template.dimensions.unit}
+                {template.hasFrontBack ? " | Double-sided" : ""}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Service Title *
+            </label>
+            <input
+              {...register("title")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="e.g., Business Cards"
+            />
+            {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Description *
+            </label>
+            <textarea
+              {...register("description")}
+              rows={3}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Describe your print service..."
+            />
+            {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Base Price ($) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              {...register("price", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.price && <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Discount ($) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register("discount", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Category *
+            </label>
+            <select
+              {...register("category")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="other">Other</option>
+              <option value="brochure">Brochure</option>
+              <option value="booklet">Booklet</option>
+            </select>
+            {errors.category && <p className="text-red-400 text-sm mt-1">{errors.category.message}</p>}
+          </div>
+          
+          <div className="flex items-end">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                {...register("hasFrontBack")}
+                className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm font-medium">Double-sided printing</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Print Dimensions *</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Width</label>
+              <input
+                type="number"
+                min="1"
+                {...register("dimensions.width", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 1050"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Height</label>
+              <input
+                type="number"
+                min="1"
+                {...register("dimensions.height", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 600"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Unit</label>
+              <select
+                {...register("dimensions.unit")}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="px">Pixels (px)</option>
+                <option value="in">Inches (in)</option>
+                <option value="cm">Centimeters (cm)</option>
+              </select>
+            </div>
+            
+            <div className="flex items-end">
+              <div className="text-sm bg-gray-700 p-2 rounded w-full">
+                <span className="block">Required Size:</span>
+                <span className="font-medium">
+                  {watchDimensions?.width || 0}×{watchDimensions?.height || 0}
+                  {watchDimensions?.unit}
+                </span>
+                {watchDimensions?.width && watchDimensions?.height && (
+                  <span className="block mt-1">
+                    Aspect: {(watchDimensions.width / watchDimensions.height).toFixed(2)}:1
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          {(errors.dimensions?.width || errors.dimensions?.height) && (
+            <p className="text-red-400 text-sm mt-2">
+              Both width and height are required
+            </p>
+          )}
+        </div>
+
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Service Image</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {service.thumbnail ? "Replace Image" : "Upload Image"}
+              </label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-700 border-gray-600 hover:bg-gray-600 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <IoMdImage className="w-10 h-10 mb-3 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-400">
+                      Click to upload
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      PNG, JPG, WEBP (MAX. 15MB)
+                    </p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    {...register("image")}
+                    accept="image/*"
+                  />
+                </label>
+              </div>
+              {errors.image && <p className="text-red-400 text-sm mt-2">{errors.image.message}</p>}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Print Preview Guide
+              </label>
+              <div className="relative w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center">
+                {imagePreview ? (
+                  <img 
+                    src={imagePreview} 
+                    alt="Service preview" 
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <p>Upload an image to see</p>
+                    <p>how it fits the dimensions</p>
+                    {watchDimensions?.width && watchDimensions?.height && (
+                      <div className="mt-4 bg-gray-600 p-3 rounded">
+                        <p className="text-sm">Required:</p>
+                        <p className="font-medium">
+                          {watchDimensions.width}×{watchDimensions.height}
+                          {watchDimensions.unit}
+                        </p>
+                        <p className="text-sm mt-1">
+                          Aspect: {(watchDimensions.width / watchDimensions.height).toFixed(2)}:1
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Print Options *</h2>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: ConfigActionType.ADD_CONFIG })}
+              className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm"
+            >
+              <IoMdAdd /> Add Option Group
+            </button>
+          </div>
+          
+          {configs.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <p>No configuration options added yet</p>
+              <p className="text-sm mt-2">Add option groups like paper types, finishes, etc.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {configs.map((config, configId) => (
+                <div key={configId} className="bg-gray-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="w-full">
+                      <label className="block text-sm font-medium mb-1">
+                        Option Group Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={config.title}
+                        onChange={(e) => dispatch({
+                          type: ConfigActionType.UPDATE_TITLE,
+                          payload: { configId, title: e.target.value }
+                        })}
+                        className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="e.g., Paper Type"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => dispatch({
+                        type: ConfigActionType.REMOVE_CONFIG,
+                        payload: configId
+                      })}
+                      className="ml-4 text-red-500 hover:text-red-400 mt-7"
+                    >
+                      <IoMdRemove />
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Available Options *
+                    </label>
+                    <div className="space-y-3 mb-4">
+                      {config.items.map((item, itemIdx) => (
+                        <div 
+                          key={itemIdx}
+                          className="flex items-center gap-3"
+                        >
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => dispatch({
+                              type: ConfigActionType.UPDATE_ITEM_NAME,
+                              payload: { 
+                                configId, 
+                                itemIdx, 
+                                name: e.target.value 
+                              }
+                            })}
+                            className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Option name"
+                          />
+                          
+                          <div className="flex items-center w-32">
+                            <span className="mr-2">+$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.additionalPrice}
+                              onChange={(e) => dispatch({
+                                type: ConfigActionType.UPDATE_ITEM_PRICE,
+                                payload: { 
+                                  configId, 
+                                  itemIdx, 
+                                  price: parseFloat(e.target.value) || 0 
+                                }
+                              })}
+                              className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => dispatch({
+                              type: ConfigActionType.REMOVE_ITEM,
+                              payload: { configId, itemIdx }
+                            })}
+                            className="text-red-400 hover:text-red-300 p-2"
+                          >
+                            <IoMdRemove />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex">
+                      <input
+                        type="text"
+                        placeholder="New option name..."
+                        className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const input = e.currentTarget;
+                            if (input.value.trim()) {
+                              dispatch({
+                                type: ConfigActionType.ADD_ITEM,
+                                payload: { 
+                                  configId, 
+                                  item: { 
+                                    name: input.value.trim(), 
+                                    additionalPrice: 0 
+                                  } 
+                                }
+                              });
+                              input.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          if (input?.value.trim()) {
+                            dispatch({
+                              type: ConfigActionType.ADD_ITEM,
+                              payload: { 
+                                configId, 
+                                item: { 
+                                  name: input.value.trim(), 
+                                  additionalPrice: 0 
+                                } 
+                              }
+                            });
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
+        </div>
+
+        <div className="flex justify-center pt-6">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Updating Service...
+              </>
+            ) : "Update Service"}
+          </button>
+        </div>
+        
+        {errors.response && (
+          <p className="text-red-500 text-center py-4">{errors.response.message}</p>
+        )}
+      </form>
+    </div>
+  );
+}
