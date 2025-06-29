@@ -1,14 +1,20 @@
+// src/app/orders/[id]/page.tsx
+"use client";
+
+import { useParams } from "next/navigation";
 import { OrderDetails } from "@/components/orders/OrderDetails";
-import { notFound } from "next/navigation";
 import { Order } from "@/app/types";
+import { mockOrders } from "@/lib/mockOrders";
 
-// This could be replaced with a real fetch later
-import { mockOrders } from "@/lib/mockOrders"; // ⬅️ Create this if needed
+export default function Page() {
+  const params = useParams() as { id: string };
+  const order = mockOrders.find((o: Order) => o.id === params.id);
 
-export default function OrderDetailsPage({ params }: { params: { id: string } }) {
-  const order = mockOrders.find((order: Order) => order.id === params.id);
-
-  if (!order) return notFound();
+  if (!order) {
+    // you’ll need to handle “not found” on the client yourself,
+    // e.g. render a 404 message or redirect
+    return <p>Order not found</p>;
+  }
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
@@ -17,3 +23,4 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
     </main>
   );
 }
+

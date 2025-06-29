@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Order } from "@/app/types"; // ✅ Capitalized correctly
+import { Order } from "@/app/types";
 
 type OrderListProps = {
   orders: Order[];
@@ -9,6 +9,7 @@ export const OrderList = ({ orders }: OrderListProps) => {
   const statusStyles: Record<Order["status"], string> = {
     completed: "bg-green-900 text-green-300",
     pending: "bg-yellow-900 text-yellow-300",
+    processing: "bg-blue-900 text-blue-300", // Added missing status
     cancelled: "bg-red-900 text-red-300",
   };
 

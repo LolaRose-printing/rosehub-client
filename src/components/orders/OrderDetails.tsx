@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Order } from "@/types";
+import { Order } from "@/app/types";
 import JSZip from "jszip";
-
+import Image from "next/image";
 import { saveAs } from "file-saver";
 
 type OrderDetailsProps = {
@@ -11,8 +11,8 @@ type OrderDetailsProps = {
 };
 
 export const OrderDetails = ({ order }: OrderDetailsProps) => {
-  const [status, setStatus] = useState(order.status);
-  const [updating, setUpdating] = useState(false);
+  const [status, setStatus] = useState<string>(order.status);
+  const [updating, setUpdating] = useState<boolean>(false);
 
   const downloadAllFiles = async () => {
     const zip = new JSZip();
@@ -28,7 +28,7 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
     saveAs(content, `Order-${order.id}-Files.zip`);
   };
 
-  const updateStatus = async () => {
+  const updateStatus = async (): Promise<void> => {
     try {
       setUpdating(true);
       await fetch(`/api/orders/${order.id}/status`, {
@@ -50,6 +50,7 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
   return (
     <div className="bg-gray-900 p-6 rounded-lg">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Order Summary */}
         <div>
           <h2 className="text-xl font-bold mb-4">Order Summary</h2>
           <div className="space-y-4">
@@ -59,9 +60,7 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-400">Date</h3>
-              <p className="text-lg">
-                {new Date(order.createdAt).toLocaleString()}
-              </p>
+              <p className="text-lg">{new Date(order.createdAt).toLocaleString()}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-400">Status</h3>
@@ -92,6 +91,7 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
           </div>
         </div>
 
+        {/* Customer Information */}
         <div>
           <h2 className="text-xl font-bold mb-4">Customer Information</h2>
           <div className="space-y-4">
@@ -115,16 +115,22 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
         </div>
       </div>
 
+      {/* Print Services Ordered */}
       <div className="mt-8">
         <h2 className="text-xl font-bold mb-4">Print Services Ordered</h2>
         <div className="space-y-6">
           {order.items.map((item) => (
-            <div key={item.id} className="flex flex-col md:flex-row gap-6 p-4 bg-gray-800 rounded-lg">
+            <div
+              key={item.id}
+              className="flex flex-col md:flex-row gap-6 p-4 bg-gray-800 rounded-lg"
+            >
               <div className="flex-shrink-0">
                 {item.product.imageUrl ? (
-                  <img 
-                    src={item.product.imageUrl} 
-                    alt={item.product.title} 
+                  <Image
+                    src={item.product.imageUrl}
+                    alt={item.product.title}
+                    width={128}
+                    height={128}
                     className="w-32 h-32 object-contain"
                   />
                 ) : (
@@ -148,15 +154,14 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <p className="text-lg font-bold">
-                  ${(item.price * item.quantity).toFixed(2)}
-                </p>
+                <p className="text-lg font-bold">${(item.price * item.quantity).toFixed(2)}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Uploaded Print Files */}
       {order.printFiles.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
@@ -173,28 +178,15 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
               <div key={index} className="bg-gray-800 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">{file.name}</h3>
-                  <span className="text-sm text-gray-400">
-                    {file.type.toUpperCase()}
-                  </span>
+                  <span className="text-sm text-gray-400">{file.type.toUpperCase()}</span>
                 </div>
                 <div className="aspect-video bg-gray-700 rounded flex items-center justify-center">
                   {file.type === 'image' ? (
-                    <img 
-                      src={file.url} 
-                      alt={`Print file ${index + 1}`}
-                      className="max-h-full max-w-full object-contain"
-                    />
+                    <Image src={file.url} alt={`Print file ${index + 1}`} width={200} height={200} className="max-h-full max-w-full object-contain" />
                   ) : (
                     <div className="text-center p-4">
                       <div className="text-4xl mb-2">📄</div>
-                      <a 
-                        href={file.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-indigo-500 hover:underline"
-                      >
-                        Download PDF
-                      </a>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">Download PDF</a>
                     </div>
                   )}
                 </div>
@@ -206,3 +198,4 @@ export const OrderDetails = ({ order }: OrderDetailsProps) => {
     </div>
   );
 };
+

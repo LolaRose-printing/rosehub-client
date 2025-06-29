@@ -2,7 +2,7 @@ import { Order } from "@/types/order";
 import { Service } from "@/types/service";
 import { Token } from "@/types/token";
 import { cookies } from "next/headers";
-import { getCookie } from "cookies-next";
+//import { getCookie } from "cookies-next";
 
 // Common request wrapper using Next.js `cookies()` for server-side usage
 async function getRequest(url: URL | string): Promise<Response> {
