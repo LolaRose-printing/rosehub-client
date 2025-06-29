@@ -376,7 +376,6 @@ export default function CreateServicePage() {
         throw new Error("Unit must be selected");
       }
   
-      // Rest of your code remains the same...
       let thumbnailUrl = '';
       if (data.image && data.image[0]) {
         const imageFormData = new FormData();
@@ -390,17 +389,29 @@ export default function CreateServicePage() {
           body: imageFormData
         });
   
+        // Enhanced error handling for upload
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
+          // Try to get detailed error message
+          let errorDetails = '';
+          try {
+            const errorResponse = await uploadResponse.json();
+            errorDetails = errorResponse.message || JSON.stringify(errorResponse);
+          } catch (jsonError) {
+            errorDetails = await uploadResponse.text();
+          }
+          
+          throw new Error(`Failed to upload image: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorDetails}`);
         }
         
-        thumbnailUrl = await uploadResponse.text();
+        // Parse as JSON instead of text
+        const uploadResult = await uploadResponse.json();
+        thumbnailUrl = uploadResult.url; // Adjust based on your API response structure
       }
   
       const serviceData = {
         title: data.title,
         description: data.description,
-        price: data.price * 100,
+        price: data.price * 100, // Convert dollars to cents
         discount: data.discount,
         dimensions: JSON.stringify({
           width: Number(data.dimensions.width),
@@ -432,12 +443,20 @@ export default function CreateServicePage() {
         body: JSON.stringify(serviceData)
       });
   
-      const responseData = await response.json();
-      
+      // Handle service creation response
       if (!response.ok) {
-        throw new Error(responseData.message || 'Service creation failed');
+        let errorMessage = 'Service creation failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          const text = await response.text();
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
   
+      const responseData = await response.json();
       router.push('/services');
       
     } catch (error: any) {
@@ -450,6 +469,8 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
+
+  
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
