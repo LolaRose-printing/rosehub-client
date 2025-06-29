@@ -381,7 +381,8 @@ export default function CreateServicePage() {
         const imageFormData = new FormData();
         imageFormData.append('file', data.image[0]);
         
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload`, {
+        // FIX 1: Use the correct upload endpoint
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/upload`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${getCookie("auth")}`
@@ -389,29 +390,36 @@ export default function CreateServicePage() {
           body: imageFormData
         });
   
-        // Enhanced error handling for upload
+        // FIX 2: Read response only once
+        const responseText = await uploadResponse.text();
+        
         if (!uploadResponse.ok) {
-          // Try to get detailed error message
-          let errorDetails = '';
+          let errorDetails = responseText;
           try {
-            const errorResponse = await uploadResponse.json();
-            errorDetails = errorResponse.message || JSON.stringify(errorResponse);
+            // Attempt to parse as JSON
+            const errorJson = JSON.parse(responseText);
+            errorDetails = errorJson.message || JSON.stringify(errorJson);
           } catch (jsonError) {
-            errorDetails = await uploadResponse.text();
+            // Keep text if not JSON
           }
           
-          throw new Error(`Failed to upload image: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorDetails}`);
+          throw new Error(`Failed to upload image: ${uploadResponse.status} - ${errorDetails}`);
         }
         
-        // Parse as JSON instead of text
-        const uploadResult = await uploadResponse.json();
-        thumbnailUrl = uploadResult.url; // Adjust based on your API response structure
+        // Parse as JSON
+        try {
+          const uploadResult = JSON.parse(responseText);
+          thumbnailUrl = uploadResult.url; 
+        } catch (e) {
+          // Handle non-JSON response
+          thumbnailUrl = responseText;
+        }
       }
   
       const serviceData = {
         title: data.title,
         description: data.description,
-        price: data.price * 100, // Convert dollars to cents
+        price: data.price * 100,
         discount: data.discount,
         dimensions: JSON.stringify({
           width: Number(data.dimensions.width),
@@ -443,20 +451,21 @@ export default function CreateServicePage() {
         body: JSON.stringify(serviceData)
       });
   
-      // Handle service creation response
+      // FIX 3: Handle service creation response properly
+      const responseText = await response.text();
+      
       if (!response.ok) {
         let errorMessage = 'Service creation failed';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(responseText);
           errorMessage = errorData.message || errorMessage;
         } catch (jsonError) {
-          const text = await response.text();
-          errorMessage = text || errorMessage;
+          errorMessage = responseText || errorMessage;
         }
         throw new Error(errorMessage);
       }
   
-      const responseData = await response.json();
+      const responseData = JSON.parse(responseText);
       router.push('/services');
       
     } catch (error: any) {
@@ -470,7 +479,7 @@ export default function CreateServicePage() {
     }
   };
 
-  
+
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
