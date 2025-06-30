@@ -364,71 +364,74 @@ export default function CreateServicePage() {
     setLoading(true);
     try {
       const formData = new FormData();
-      
-      // Append all fields
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      // ... append other fields ...
   
-      // Add missing required fields
-      formData.append("category", data.category);
+      // Core fields
+      formData.append("title",        data.title);
+      formData.append("description",  data.description);
+      formData.append("price",        data.price.toString());
+      formData.append("discount",     data.discount.toString());
+      formData.append("category",     data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      // Append image if exists
+  
+      // 📐 Dimensions as separate fields
+      formData.append("dimensions[width]",  data.dimensions.width.toString());
+      formData.append("dimensions[height]", data.dimensions.height.toString());
+      formData.append("dimensions[unit]",   data.dimensions.unit);
+  
+      // 🖼️ File upload
       if (data.image?.[0]) {
         formData.append("thumbnail", data.image[0]);
       }
   
-      // Append configurations as JSON string
-      formData.append("configurations", JSON.stringify(
-        data.configurations.map(config => ({
-          title: config.title,
-          items: config.items.map(item => ({
-            name: item.name,
-            additionalPrice: item.additionalPrice
+      // ⚙️ Configurations as JSON string
+      formData.append(
+        "configurations",
+        JSON.stringify(
+          data.configurations.map(cfg => ({
+            title: cfg.title,
+            items:  cfg.items.map(item => ({
+              name:            item.name,
+              additionalPrice: item.additionalPrice
+            }))
           }))
-        }))
-      ));
-  
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${getCookie("auth")}`
-          },
-          body: formData
-        }
+        )
       );
   
-      if (!response.ok) throw new Error(await response.text());
+      // 🔗 Determine and log endpoint
+      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
+      console.log("[DEBUG] Posting to endpoint:", endpoint);
+  
+      // —— DEBUG: print all FormData entries —— 
+      for (const [key, value] of formData.entries()) {
+        console.log("[DEBUG] FormData field:", key, value);
+      }
+  
+      const response = await fetch(endpoint, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${getCookie("auth")}` },
+        body:    formData
+      });
+  
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("[DEBUG] Server rejected payload with:", text);
+        throw new Error(text || "Creation failed");
+      }
+  
       router.push("/services");
     } catch (error) {
-      setError("response", { 
-        type: "manual",
+      console.error("[DEBUG] Submission error:", error);
+      setError("response", {
+        type:    "manual",
         message: error instanceof Error ? error.message : "Creation failed"
       });
     } finally {
       setLoading(false);
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   
+
+
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
