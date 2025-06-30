@@ -359,37 +359,43 @@ export default function CreateServicePage() {
   
     trigger(); // validate new form state
   };
+
+  
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
       const formData = new FormData();
-      
-      // Append all fields
+  
+      // Required fields
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("price", data.price.toString());
+      formData.append("price", data.price.toString()); // Server converts to cents
       formData.append("discount", data.discount.toString());
-      // ... append other fields ...
-  
-      // Add missing required fields
       formData.append("category", data.category);
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      // Append image if exists
-      if (data.image?.[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
+      formData.append("hasFrontBack", String(data.hasFrontBack));
   
-      // Append configurations as JSON string
+      // Dimensions must be JSON string
+      formData.append("dimensions", JSON.stringify({
+        width: Number(data.dimensions.width),
+        height: Number(data.dimensions.height),
+        unit: data.dimensions.unit
+      }));
+  
+      // Configurations must be JSON string
       formData.append("configurations", JSON.stringify(
         data.configurations.map(config => ({
           title: config.title,
           items: config.items.map(item => ({
             name: item.name,
-            additionalPrice: item.additionalPrice
+            additionalPrice: Number(item.additionalPrice) // Ensure numbers
           }))
         }))
       ));
+  
+      // File upload (MUST match server's @FileInterceptor('thumbnail'))
+      if (data.image?.[0]) {
+        formData.append("thumbnail", data.image[0]); // Field name must be 'thumbnail'
+      }
   
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
@@ -398,16 +404,19 @@ export default function CreateServicePage() {
           headers: {
             Authorization: `Bearer ${getCookie("auth")}`
           },
-          body: formData
+          body: formData // No Content-Type header for FormData!
         }
       );
   
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) {
+        const errorData = await response.json(); // Get server's validation errors
+        throw new Error(errorData.message || "Validation failed");
+      }
+  
       router.push("/services");
     } catch (error) {
-      setError("response", { 
-        type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed"
+      setError("root", { 
+        message: error instanceof Error ? error.message : "Submission failed"
       });
     } finally {
       setLoading(false);
