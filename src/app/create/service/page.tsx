@@ -367,9 +367,14 @@ export default function CreateServicePage() {
       // Append all fields
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("price", (data.price * 100).toString());
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
       // ... append other fields ...
   
+      // Add missing required fields
+      formData.append("category", data.category);
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
+      formData.append("dimensions", JSON.stringify(data.dimensions));
       // Append image if exists
       if (data.image?.[0]) {
         formData.append("thumbnail", data.image[0]);
@@ -387,7 +392,7 @@ export default function CreateServicePage() {
       ));
   
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
         {
           method: "POST",
           headers: {
