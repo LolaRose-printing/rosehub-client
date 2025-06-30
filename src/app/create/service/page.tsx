@@ -376,82 +376,51 @@ export default function CreateServicePage() {
         throw new Error("Unit must be selected");
       }
   
-      let thumbnailUrl = '';
+      // Create FormData
+      const formData = new FormData();
+  
+      // Append service data
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", (data.price * 100).toString()); // Convert to cents
+      formData.append("discount", data.discount.toString());
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
+      formData.append("category", data.category);
+      
+      // Append dimensions
+      formData.append("dimensions[width]", data.dimensions.width.toString());
+      formData.append("dimensions[height]", data.dimensions.height.toString());
+      formData.append("dimensions[unit]", data.dimensions.unit);
+      
+      // Append image
       if (data.image && data.image[0]) {
-        const imageFormData = new FormData();
-        imageFormData.append('file', data.image[0]);
-        
-        // FIX 1: Use the correct upload endpoint
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/upload`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getCookie("auth")}`
-          },
-          body: imageFormData
-        });
-  
-        // FIX 2: Read response only once
-        const responseText = await uploadResponse.text();
-        
-        if (!uploadResponse.ok) {
-          let errorDetails = responseText;
-          try {
-            // Attempt to parse as JSON
-            const errorJson = JSON.parse(responseText);
-            errorDetails = errorJson.message || JSON.stringify(errorJson);
-          } catch (jsonError) {
-            // Keep text if not JSON
-          }
-          
-          throw new Error(`Failed to upload image: ${uploadResponse.status} - ${errorDetails}`);
-        }
-        
-        // Parse as JSON
-        try {
-          const uploadResult = JSON.parse(responseText);
-          thumbnailUrl = uploadResult.url; 
-        } catch (e) {
-          // Handle non-JSON response
-          thumbnailUrl = responseText;
-        }
+        formData.append("thumbnail", data.image[0]);
       }
-  
-      const serviceData = {
-        title: data.title,
-        description: data.description,
-        price: data.price * 100,
-        discount: data.discount,
-        dimensions: JSON.stringify({
-          width: Number(data.dimensions.width),
-          height: Number(data.dimensions.height),
-          unit: data.dimensions.unit
-        }),
-        hasFrontBack: data.hasFrontBack,
-        thumbnail: thumbnailUrl,
-        category: data.category,
-        configurations: {
-          create: data.configurations.map(config => ({
-            title: config.title,
-            items: {
-              create: config.items.map(item => ({
-                name: item.name,
-                additionalPrice: item.additionalPrice
-              }))
-            }
+      
+      // Append configurations
+      formData.append("configurations", JSON.stringify(
+        data.configurations.map(config => ({
+          title: config.title,
+          items: config.items.map(item => ({
+            name: item.name,
+            additionalPrice: item.additionalPrice
           }))
+        }))
+      );
+  
+      // Send the single request to create service
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getCookie("auth")}`,
+          },
+          body: formData,
         }
-      };
+      );
   
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getCookie("auth")}`
-        },
-        body: JSON.stringify(serviceData)
-      });
-  
-      // FIX 3: Handle service creation response properly
+      // Handle response
       const responseText = await response.text();
       
       if (!response.ok) {
@@ -462,23 +431,20 @@ export default function CreateServicePage() {
         } catch (jsonError) {
           errorMessage = responseText || errorMessage;
         }
-        throw new Error(errorMessage);
+        throw new Error(`${response.status}: ${errorMessage}`);
       }
   
-      const responseData = JSON.parse(responseText);
-      router.push('/services');
-      
+      router.push("/services");
     } catch (error: any) {
-      console.error('Service creation error:', error);
-      setError('response', {
-        type: 'manual',
-        message: error.message || 'Failed to create service. Please try again.'
+      console.error("Service creation error:", error);
+      setError("response", {
+        type: "manual",
+        message: error.message || "Failed to create service. Please try again.",
       });
     } finally {
       setLoading(false);
     }
   };
-
 
 
   return (
