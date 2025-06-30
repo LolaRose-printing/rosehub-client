@@ -406,8 +406,9 @@ export default function CreateServicePage() {
             additionalPrice: item.additionalPrice
           }))
         }))
-      );
-  
+      )); 
+
+      
       // Send the single request to create service
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/`,
