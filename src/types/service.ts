@@ -3,18 +3,34 @@ export type Configuration = {
   title: string;
   items: string[];
   serviceId: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 };
 
-export type Service = {
+export type Dimensions = {
+  id: number;
+  width: number;
+  height: number;
+  unit: string;
+  serviceId: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface Service {
   id: number;
   title: string;
-  price: string;
   description: string;
-  discount: string;
+  price: number;
+  discount: number;
+  productId: string;
+  priceId: string;
   thumbnail: string;
-  configurations: Configuration[];
   slug: string;
+  hasFrontBack: boolean;
   createdAt: string;
-};
+  updatedAt: string;
+  category: string;
+  configurations: Configuration[];
+  dimensions: Dimensions;
+}

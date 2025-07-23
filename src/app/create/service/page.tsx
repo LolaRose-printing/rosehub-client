@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, FormEvent, useRef, useEffect } from "react";
+import { useState, useReducer, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -85,7 +85,7 @@ enum ConfigActionType {
   UPDATE_ITEM_NAME,
   UPDATE_ITEM_PRICE,
 }
- 
+
 
 type ConfigAction =
   | { type: ConfigActionType.ADD_CONFIG }
@@ -101,63 +101,63 @@ function configReducer(state: PrintConfiguration[], action: ConfigAction): Print
   switch (action.type) {
     case ConfigActionType.ADD_CONFIG:
       return [...state, { title: "New Option Group", items: [{ name: "New Option", additionalPrice: 0 }] }];
-    
+
     case ConfigActionType.REMOVE_CONFIG:
       return state.filter((_, idx) => idx !== action.payload);
-    
+
     case ConfigActionType.ADD_ITEM:
-      return state.map((config, idx) => 
-        idx === action.payload.configId 
+      return state.map((config, idx) =>
+        idx === action.payload.configId
           ? { ...config, items: [...config.items, action.payload.item] }
           : config
       );
-      
+
     case ConfigActionType.LOAD_TEMPLATE_CONFIGS:
-        return action.payload;
-      
-    
+      return action.payload;
+
+
     case ConfigActionType.REMOVE_ITEM:
-      return state.map((config, idx) => 
+      return state.map((config, idx) =>
         idx === action.payload.configId
           ? { ...config, items: config.items.filter((_, i) => i !== action.payload.itemIdx) }
           : config
       );
-    
+
     case ConfigActionType.UPDATE_TITLE:
-      return state.map((config, idx) => 
+      return state.map((config, idx) =>
         idx === action.payload.configId
           ? { ...config, title: action.payload.title }
           : config
       );
-    
+
     case ConfigActionType.UPDATE_ITEM_NAME:
-      return state.map((config, idx) => 
+      return state.map((config, idx) =>
         idx === action.payload.configId
           ? {
-              ...config,
-              items: config.items.map((item, i) => 
-                i === action.payload.itemIdx
-                  ? { ...item, name: action.payload.name }
-                  : item
-              )
-            }
+            ...config,
+            items: config.items.map((item, i) =>
+              i === action.payload.itemIdx
+                ? { ...item, name: action.payload.name }
+                : item
+            )
+          }
           : config
       );
-    
+
     case ConfigActionType.UPDATE_ITEM_PRICE:
-      return state.map((config, idx) => 
+      return state.map((config, idx) =>
         idx === action.payload.configId
           ? {
-              ...config,
-              items: config.items.map((item, i) => 
-                i === action.payload.itemIdx
-                  ? { ...item, additionalPrice: action.payload.price }
-                  : item
-              )
-            }
+            ...config,
+            items: config.items.map((item, i) =>
+              i === action.payload.itemIdx
+                ? { ...item, additionalPrice: action.payload.price }
+                : item
+            )
+          }
           : config
       );
-    
+
     default:
       return state;
   }
@@ -170,22 +170,22 @@ const PRINT_TEMPLATES = [
     hasFrontBack: true,
     category: 'other' as const,
     configurations: [
-      { 
-        title: "Paper Type", 
+      {
+        title: "Paper Type",
         items: [
           { name: "Matte", additionalPrice: 0 },
           { name: "Glossy", additionalPrice: 5.00 },
           { name: "Recycled", additionalPrice: 2.50 },
           { name: "Premium", additionalPrice: 10.00 }
-        ] 
+        ]
       },
-      { 
-        title: "Finish", 
+      {
+        title: "Finish",
         items: [
           { name: "Rounded Corners", additionalPrice: 3.00 },
           { name: "Spot UV", additionalPrice: 8.00 },
           { name: "Foil Stamping", additionalPrice: 12.00 }
-        ] 
+        ]
       }
     ]
   },
@@ -195,22 +195,22 @@ const PRINT_TEMPLATES = [
     hasFrontBack: false,
     category: 'brochure' as const,
     configurations: [
-      { 
-        title: "Paper Quality", 
+      {
+        title: "Paper Quality",
         items: [
           { name: "Standard", additionalPrice: 0 },
           { name: "Premium", additionalPrice: 15.00 },
           { name: "Glossy", additionalPrice: 10.00 }
-        ] 
+        ]
       },
-      { 
-        title: "Folding", 
+      {
+        title: "Folding",
         items: [
           { name: "Half Fold", additionalPrice: 5.00 },
           { name: "Tri-Fold", additionalPrice: 7.00 },
           { name: "Z-Fold", additionalPrice: 8.00 },
           { name: "Gate Fold", additionalPrice: 9.00 }
-        ] 
+        ]
       }
     ]
   },
@@ -220,20 +220,20 @@ const PRINT_TEMPLATES = [
     hasFrontBack: false,
     category: 'booklet' as const,
     configurations: [
-      { 
-        title: "Binding", 
+      {
+        title: "Binding",
         items: [
           { name: "Saddle Stitch", additionalPrice: 0 },
           { name: "Perfect Binding", additionalPrice: 20.00 },
           { name: "Spiral Binding", additionalPrice: 15.00 }
-        ] 
+        ]
       },
-      { 
-        title: "Cover", 
+      {
+        title: "Cover",
         items: [
           { name: "Soft Cover", additionalPrice: 0 },
           { name: "Hard Cover", additionalPrice: 25.00 }
-        ] 
+        ]
       }
     ]
   }
@@ -245,12 +245,12 @@ export default function CreateServicePage() {
   const [configs, dispatch] = useReducer(configReducer, [{ title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] }]);
   const [loading, setLoading] = useState(false);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  
-  const { 
-    register, 
-    handleSubmit, 
-    setValue, 
-    watch, 
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
     setError,
     trigger
@@ -273,63 +273,62 @@ export default function CreateServicePage() {
   }, [configs, setValue]);
 
   const watchDimensions = watch("dimensions");
-  const watchHasFrontBack = watch("hasFrontBack");
   const watchImage = watch("image");
-  const watchCategory = watch("category");
+
 
   useEffect(() => {
     if (watchImage?.[0]) {
       const file = watchImage[0];
       const reader = new FileReader();
-      
+
       reader.onloadend = () => {
         const img = new Image();
         img.src = reader.result as string;
-        
+
         img.onload = () => {
           setImagePreview(img.src);
-          
+
           if (previewCanvasRef.current && watchDimensions.width > 0 && watchDimensions.height > 0) {
             const canvas = previewCanvasRef.current;
             const ctx = canvas.getContext('2d');
-            
+
             canvas.width = 300;
             canvas.height = 300;
-            
+
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              
+
               const scaleX = canvas.width / watchDimensions.width;
               const scaleY = canvas.height / watchDimensions.height;
               const scale = Math.min(scaleX, scaleY);
-              
+
               const newWidth = watchDimensions.width * scale;
               const newHeight = watchDimensions.height * scale;
-              
+
               const offsetX = (canvas.width - newWidth) / 2;
               const offsetY = (canvas.height - newHeight) / 2;
-              
+
               ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
-              
+
               ctx.strokeStyle = '#f87171';
               ctx.lineWidth = 2;
               ctx.setLineDash([5, 5]);
               ctx.strokeRect(offsetX, offsetY, newWidth, newHeight);
               ctx.setLineDash([]);
-              
+
               ctx.fillStyle = '#f87171';
               ctx.font = '12px Arial';
               ctx.textAlign = 'center';
               ctx.fillText(
-                `${watchDimensions.width}×${watchDimensions.height}${watchDimensions.unit}`, 
-                canvas.width / 2, 
+                `${watchDimensions.width}×${watchDimensions.height}${watchDimensions.unit}`,
+                canvas.width / 2,
                 offsetY + newHeight + 20
               );
             }
           }
         };
       };
-      
+
       reader.readAsDataURL(file);
     } else {
       setImagePreview(null);
@@ -341,102 +340,96 @@ export default function CreateServicePage() {
       console.error("Invalid template object:", template);
       return;
     }
-  
+
     setValue("dimensions", template.dimensions);
     setValue("hasFrontBack", template.hasFrontBack);
     setValue("category", template.category);
-  
+
     // Batch build of all configs
     const newConfigs: PrintConfiguration[] = template.configurations.map(config => ({
       title: config.title,
       items: [...config.items]
     }));
-  
+
     dispatch({
       type: ConfigActionType.LOAD_TEMPLATE_CONFIGS,
       payload: newConfigs
     });
-  
+
     trigger(); // validate new form state
   };
-  
+
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
       const formData = new FormData();
-  
+
       // Core fields
-      formData.append("title",        data.title);
-      formData.append("description",  data.description);
-      formData.append("price",        data.price.toString());
-      formData.append("discount",     data.discount.toString());
-      formData.append("category",     data.category);
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-  
+
       // 📐 Dimensions as separate fields
-      formData.append("dimensions[width]",  data.dimensions.width.toString());
+      formData.append("dimensions[width]", data.dimensions.width.toString());
       formData.append("dimensions[height]", data.dimensions.height.toString());
-      formData.append("dimensions[unit]",   data.dimensions.unit);
-  
+      formData.append("dimensions[unit]", data.dimensions.unit);
+
       // 🖼️ File upload
       if (data.image?.[0]) {
         formData.append("thumbnail", data.image[0]);
       }
-  
+
       // ⚙️ Configurations as JSON string
       formData.append(
         "configurations",
         JSON.stringify(
           data.configurations.map(cfg => ({
             title: cfg.title,
-            items:  cfg.items.map(item => ({
-              name:            item.name,
+            items: cfg.items.map(item => ({
+              name: item.name,
               additionalPrice: item.additionalPrice
             }))
           }))
         )
       );
-  
+
       // 🔗 Determine and log endpoint
       const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
-      console.log("[DEBUG] Posting to endpoint:", endpoint);
-  
-      // —— DEBUG: print all FormData entries —— 
-      for (const [key, value] of formData.entries()) {
-        console.log("[DEBUG] FormData field:", key, value);
-      }
-  
+
       const response = await fetch(endpoint, {
-        method:  "POST",
+        method: "POST",
         headers: { Authorization: `Bearer ${getCookie("auth")}` },
-        body:    formData
+        body: formData
       });
-  
+
       if (!response.ok) {
         const text = await response.text();
         console.error("[DEBUG] Server rejected payload with:", text);
         throw new Error(text || "Creation failed");
       }
-  
+
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
-        type:    "manual",
+        type: "manual",
         message: error instanceof Error ? error.message : "Creation failed"
       });
     } finally {
       setLoading(false);
     }
   };
-  
+
 
 
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Create New Print Service</h1>
-      
+
       <div className="mb-8 p-4 bg-gray-800 rounded-lg">
         <h2 className="text-lg font-semibold mb-4">Quick Templates</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -470,7 +463,7 @@ export default function CreateServicePage() {
             />
             {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title.message}</p>}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">
               Description *
@@ -500,7 +493,7 @@ export default function CreateServicePage() {
             />
             {errors.price && <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">
               Discount ($) *
@@ -515,7 +508,7 @@ export default function CreateServicePage() {
             />
             {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">
               Category *
@@ -530,7 +523,7 @@ export default function CreateServicePage() {
             </select>
             {errors.category && <p className="text-red-400 text-sm mt-1">{errors.category.message}</p>}
           </div>
-          
+
           <div className="flex items-end">
             <label className="flex items-center space-x-2">
               <input
@@ -556,7 +549,7 @@ export default function CreateServicePage() {
                 placeholder="e.g., 1050"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Height</label>
               <input
@@ -567,7 +560,7 @@ export default function CreateServicePage() {
                 placeholder="e.g., 600"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">Unit</label>
               <select
@@ -579,7 +572,7 @@ export default function CreateServicePage() {
                 <option value="cm">Centimeters (cm)</option>
               </select>
             </div>
-            
+
             <div className="flex items-end">
               <div className="text-sm bg-gray-700 p-2 rounded w-full">
                 <span className="block">Required Size:</span>
@@ -620,9 +613,9 @@ export default function CreateServicePage() {
                       PNG, JPG, WEBP (MAX. 15MB)
                     </p>
                   </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    className="hidden"
                     {...register("image")}
                     accept="image/*"
                   />
@@ -630,15 +623,15 @@ export default function CreateServicePage() {
               </div>
               {errors.image && <p className="text-red-400 text-sm mt-2">{errors.image.message}</p>}
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-2">
                 Print Preview Guide
               </label>
               <div className="relative w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center">
                 {imagePreview ? (
-                  <canvas 
-                    ref={previewCanvasRef} 
+                  <canvas
+                    ref={previewCanvasRef}
                     className="w-full h-full"
                   />
                 ) : (
@@ -675,7 +668,7 @@ export default function CreateServicePage() {
               <IoMdAdd /> Add Option Group
             </button>
           </div>
-          
+
           {configs.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <p>No configuration options added yet</p>
@@ -712,14 +705,14 @@ export default function CreateServicePage() {
                       <IoMdRemove />
                     </button>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Available Options *
                     </label>
                     <div className="space-y-3 mb-4">
                       {config.items.map((item, itemIdx) => (
-                        <div 
+                        <div
                           key={itemIdx}
                           className="flex items-center gap-3"
                         >
@@ -728,16 +721,16 @@ export default function CreateServicePage() {
                             value={item.name}
                             onChange={(e) => dispatch({
                               type: ConfigActionType.UPDATE_ITEM_NAME,
-                              payload: { 
-                                configId, 
-                                itemIdx, 
-                                name: e.target.value 
+                              payload: {
+                                configId,
+                                itemIdx,
+                                name: e.target.value
                               }
                             })}
                             className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             placeholder="Option name"
                           />
-                          
+
                           <div className="flex items-center w-32">
                             <span className="mr-2">+$</span>
                             <input
@@ -747,17 +740,17 @@ export default function CreateServicePage() {
                               value={item.additionalPrice}
                               onChange={(e) => dispatch({
                                 type: ConfigActionType.UPDATE_ITEM_PRICE,
-                                payload: { 
-                                  configId, 
-                                  itemIdx, 
-                                  price: parseFloat(e.target.value) || 0 
+                                payload: {
+                                  configId,
+                                  itemIdx,
+                                  price: parseFloat(e.target.value) || 0
                                 }
                               })}
                               className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                               placeholder="0.00"
                             />
                           </div>
-                          
+
                           <button
                             type="button"
                             onClick={() => dispatch({
@@ -771,7 +764,7 @@ export default function CreateServicePage() {
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="flex">
                       <input
                         type="text"
@@ -784,12 +777,12 @@ export default function CreateServicePage() {
                             if (input.value.trim()) {
                               dispatch({
                                 type: ConfigActionType.ADD_ITEM,
-                                payload: { 
-                                  configId, 
-                                  item: { 
-                                    name: input.value.trim(), 
-                                    additionalPrice: 0 
-                                  } 
+                                payload: {
+                                  configId,
+                                  item: {
+                                    name: input.value.trim(),
+                                    additionalPrice: 0
+                                  }
                                 }
                               });
                               input.value = '';
@@ -805,12 +798,12 @@ export default function CreateServicePage() {
                           if (input?.value.trim()) {
                             dispatch({
                               type: ConfigActionType.ADD_ITEM,
-                              payload: { 
-                                configId, 
-                                item: { 
-                                  name: input.value.trim(), 
-                                  additionalPrice: 0 
-                                } 
+                              payload: {
+                                configId,
+                                item: {
+                                  name: input.value.trim(),
+                                  additionalPrice: 0
+                                }
                               }
                             });
                             input.value = '';
@@ -845,7 +838,7 @@ export default function CreateServicePage() {
             ) : "Create Service"}
           </button>
         </div>
-        
+
         {errors.response && (
           <p className="text-red-500 text-center py-4">{errors.response.message}</p>
         )}

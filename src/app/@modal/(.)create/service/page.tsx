@@ -111,7 +111,8 @@ const ConfigurationComponent = ({ configurationState }: any) => {
 
     configurationState.dispatch({
       type: Type.Insert,
-      payload: { id: configurationState.id, title, items } },
+      payload: { id: configurationState.id, title, items }
+    },
     );
 
     setIsOnConfiguration(true);
@@ -142,29 +143,29 @@ const ConfigurationComponent = ({ configurationState }: any) => {
         </div>
         <div className="flex flex-row gap-3">
           <div className="flex flex-col">
-          <label htmlFor="item_config" className="block text-sm font-medium leading-6 text-gray-100">Item</label>
-          <input
-            id="item"
-            type="text"
-            autoComplete="item"
-            className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5"
-            onChange={evt => setItem(evt.target.value)}
-            value={item}
-          />
-        </div>
-        <div className="flex flex-col">
-          <button
-            className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-800 rounded-lg shadow-md py-2 px-3 w-full max-w-72 m-auto"
-            onClick={addItem}
-          >
-            <IoMdAdd />
-            <span>Add Item</span>
-          </button>
-        </div>
+            <label htmlFor="item_config" className="block text-sm font-medium leading-6 text-gray-100">Item</label>
+            <input
+              id="item"
+              type="text"
+              autoComplete="item"
+              className="px-2 w-full max-w-22 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5"
+              onChange={evt => setItem(evt.target.value)}
+              value={item}
+            />
+          </div>
+          <div className="flex flex-col">
+            <button
+              className="flex flex-row gap-2 items-center justify-center mt-6 bg-gray-800 rounded-lg shadow-md py-2 px-3 w-full max-w-72 m-auto"
+              onClick={addItem}
+            >
+              <IoMdAdd />
+              <span>Add Item</span>
+            </button>
+          </div>
         </div>
       </div>
       <div className="flex flex-row gap-2 m-auto wrap w-full max-w-96 items-center justify-center flex-wrap">
-        {items.map((item, i) => { 
+        {items.map((item, i) => {
           return <span key={i} className="py-2 px-2 bg-gray-600 rounded">{item}</span>;
         })}
       </div>
@@ -213,7 +214,7 @@ const Modal = () => {
     shouldUnregister: true,
     resolver: zodResolver(schema),
   });
-  
+
   const reducer = (state: State, action: Action) => {
     switch (action.type) {
       case Type.Insert:
@@ -224,7 +225,6 @@ const Modal = () => {
         };
       case Type.Delete:
         const removedComponent = configurationsComponents.filter(el => el.id !== action.payload);
-        console.log(action.payload, removedComponent);
         setConfigurationsComponents(removedComponent);
 
         const removed = state.configurations.filter(el => el.id !== action.payload);
@@ -282,7 +282,7 @@ const Modal = () => {
       }
 
       const headers = new Headers({
-        Authorization:`Bearer ${await getCookie("auth")}`,
+        Authorization: `Bearer ${await getCookie("auth")}`,
       });
       const requestInit: RequestInit = {
         headers,
@@ -304,7 +304,7 @@ const Modal = () => {
 
       router.refresh();
       router.back();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error: unknown) {
       throw Error("There was a problem trying to create a service.");
     } finally {
@@ -352,7 +352,7 @@ const Modal = () => {
                       as="h3"
                       className="text-lg font-medium leading-6 text-white-900 text-center m-auto justify-center items-center"
                     >
-                     <span className="font-bold">Create Service</span>
+                      <span className="font-bold">Create Service</span>
                     </DialogTitle>
                     <form className="space-y-6">
                       <div className="text-center">
@@ -375,7 +375,7 @@ const Modal = () => {
                             defaultValue="" {...register("description", { required: true })}
                             className="shadow appearance-none border rounded px-2 w-full max-w-82 py-2 px-3 text-gray-900 leading-tight focus:outline-none focus:shadow-outline bg-[#79889e]"
                             rows={5}
-                            ></textarea>
+                          ></textarea>
                         </div>
                         <div className="mt-2">
                           {errors.description && <span>{errors.description.message}</span>}
@@ -383,27 +383,27 @@ const Modal = () => {
                       </div>
                       <div className="flex flex-row gap-6 justify-center">
                         <div className="text-center">
-                        <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price ($)</label>
+                          <div>
+                            <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Price ($)</label>
+                          </div>
+                          <div>
+                            <input id="price" type="text" autoComplete="price" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
+                          </div>
+                          <div className="mt-2">
+                            {errors.price && <span>{errors.price.message}</span>}
+                          </div>
                         </div>
-                        <div>
-                          <input id="price" type="text" autoComplete="price" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("price", { required: true })} />
+                        <div className="text-center">
+                          <div>
+                            <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount ($)</label>
+                          </div>
+                          <div>
+                            <input id="discount" type="text" autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
+                          </div>
+                          <div className="mt-2">
+                            {errors.discount && <span>{errors.discount.message}</span>}
+                          </div>
                         </div>
-                        <div className="mt-2">
-                          {errors.price && <span>{errors.price.message}</span>}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div>
-                          <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-100">Discount ($)</label>
-                        </div>
-                        <div>
-                          <input id="discount" type="text" autoComplete="discount" className="px-2 w-full max-w-22 rounded-md border-0 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("discount", { required: true })} />
-                        </div>
-                        <div className="mt-2">
-                          {errors.discount && <span>{errors.discount.message}</span>}
-                        </div>
-                      </div>
                       </div>
                       <div className="text-center">
                         <div>

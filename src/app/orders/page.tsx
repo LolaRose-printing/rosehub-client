@@ -1,65 +1,9 @@
 import { Header } from "@/components/Header";
-import { OrderList } from "@/components/orders/OrderList";
-import { Order } from "@/app/types";
+import { getOrders } from "@/lib/fetcher";
+import OrderList from "../../components/OrderList";
 
-const mockOrders: Order[] = [
-  {
-    id: "ord_001",
-    customer: {
-      id: "cust_001",
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "555-1234",
-    },
-    items: [
-      {
-        id: "item_001",
-        product: {
-          id: "prod_001",
-          title: "Custom T-Shirt",
-          description: "Comfortable cotton T-Shirt",
-          price: 19.99,
-          imageUrl: "https://via.placeholder.com/150",
-        },
-        quantity: 2,
-        price: 19.99,
-      },
-      {
-        id: "item_002",
-        product: {
-          id: "prod_002",
-          title: "Coffee Mug",
-          description: "Ceramic mug with logo",
-          price: 9.99,
-          imageUrl: "",
-        },
-        quantity: 1,
-        price: 9.99,
-      },
-    ],
-    printFiles: [
-      {
-        name: "design1.png",
-        url: "https://via.placeholder.com/300",
-        type: "image",
-      },
-      {
-        name: "specs.pdf",
-        url: "https://example.com/specs.pdf",
-        type: "pdf",
-      },
-    ],
-    total: 49.97,
-    status: "completed",
-    shippingAddress: "123 Main St, Springfield, USA",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  // add more mock orders here if you want
-];
-
-export default function OrdersPage() {
-  const orders = mockOrders;
+export default async function OrdersPage() {
+  const orders = await getOrders();
 
   return (
     <main>
@@ -69,7 +13,7 @@ export default function OrdersPage() {
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold">Orders</h1>
             <div className="text-sm text-gray-400">
-              {orders.length} {orders.length === 1 ? "order" : "orders"} found
+              {orders.length} {orders.length === 1 ? 'order' : 'orders'} found
             </div>
           </div>
 

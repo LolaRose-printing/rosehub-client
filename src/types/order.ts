@@ -42,25 +42,60 @@ export type Selection = {
   orderId: number;
 };
 
-export type Order = {
-  id: string;
-  quantity?: number;
-  customerEmail?: string;
-  serviceId?: number;
-  frontImage?: string;
-  backImage?: string;
-  selection?: Selection[];
+export interface OrderItemConfiguration {
+  selectedOptions: string[];
+}
 
-  customer: Customer;
-  items: Item[];
-  printFiles: PrintFile[];
-  total: number;
-  status: OrderStatus;
-  shippingAddress: string;
-  service?: Service;
-  invoiceId?: string;
+export interface ShippingAddress {
+  id: number;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
 
+export interface OrderItem {
+  id: number;
+  integrationId: string | null;
+  orderId: number;
+  serviceId: number;
+  quantity: number;
+  price: number;
+  name: string;
+  image: string;
+  configuration: OrderItemConfiguration;
+  productId: string;
+  priceId: string;
+  frontImageFilePath: string;
+  backImageFilePath: string | null;
   createdAt: string;
   updatedAt: string;
-};
+  service: Service;
+}
+
+
+export interface Order {
+  id: number;
+  customerEmail: string;
+  customerName: string;
+  customerPhone: string;
+  note: string;
+  invoiceId: string;
+  paymentMethod: string | null;
+  paymentIntentId: string | null;
+  refundDate: string | null;
+  paymentDate: string | null;
+  status: 'PENDING' | 'PAID' | 'REFUNDED' | 'CANCELLED';
+  stripeSessionId: string | null;
+  totalAmount: number | null;
+  metadata: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+  shippingAddressId: number;
+  shippingAddress: ShippingAddress;
+  orderItems: OrderItem[];
+}
+
 
