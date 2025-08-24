@@ -1,16 +1,27 @@
+"use client";
+
 import { NextPage } from "next";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { SignIn } from "@/components/SignIn";
+import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from "react";
 
-const Page: NextPage = async () => {
-  const token = (await cookies()).get("auth")?.value;
+const Page: NextPage = () => {
+  const { user } = useAuth();
 
-  if (token) {
-    redirect("/");
+  // If already authenticated, redirect to home
+  useEffect(() => {
+    if (user) {
+      window.location.href = "/";
+    }
+  }, [user]);
+
+  // Show sign in form if not authenticated
+  if (!user) {
+    return <SignIn />;
   }
 
-  return <SignIn />;
+  // Will redirect via useEffect
+  return null;
 }
 
 export default Page;

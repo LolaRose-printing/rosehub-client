@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { setCookie } from "cookies-next";
 import { z } from "zod";
 import clsx from "clsx";
+import { useAuthStore } from "@/hooks/useAuthStore";
 
 type Inputs = {
   email: string;
@@ -27,42 +28,17 @@ export const SignIn: FC = () => {
     resolver: zodResolver(schema),
   });
   const router = useRouter();
+  const { setAuth } = useAuthStore();
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
 
     try {
-      const headers = new Headers({
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      });
-      const requestInit: RequestInit = {
-        headers,
-        method: "post",
-        mode: "cors",
-        body: JSON.stringify(data),
-      };
-      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth`);
-      const request = new Request(url, requestInit);
-      const response = await fetch(request);
-
-      if (response.status !== 200) {
-        setError("response", {
-          message: "Invalid Credentials",
-        });
-        return;
-      }
-
-      const { accessToken } = await response.json();
-
-      setCookie("auth", accessToken);
-      setCookie("expiration", new Date(Date.now() + 1 * (60 * 60 * 1000)).getTime());
-
-      router.push("/");
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // Перенаправляем на Auth0 логин
+      window.location.href = "/api/auth/login";
+      return;
     } catch (error: unknown) {
       setError("response", {
-        message: "There was a problem trying to connect",
+        message: "Произошла ошибка при подключении к Auth0",
       });
     } finally {
       setLoading(false);
@@ -80,55 +56,35 @@ export const SignIn: FC = () => {
             height={350}
             className="m-auto"
           />
-          <h2 className="text-center text-2xl font-bold leading-9 tracking-tight text-gray-200">Enter your credentials to Sign In on RoseHub</h2>
+          <h2 className="text-center text-2xl font-bold leading-9 tracking-tight text-gray-200">Sign in to RoseHub Admin</h2>
+          <div className="mt-4 p-4 bg-blue-900/20 rounded-lg border border-blue-500/30">
+            <p className="text-sm text-blue-200 text-center">
+              <strong>Authentication via Auth0</strong><br />
+              Click "Sign In" button to proceed to secure Auth0 login
+            </p>
+          </div>
         </div>
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm px-6 md:px-0">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-100">Email</label>
-              </div>
-              <div className="mt-2">
-                <input id="email" type="email" autoComplete="email" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("email", { required: true })} />
-              </div>
-              <div className="mt-2">
-                {errors.email && <span>This field is required</span>}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-100">Password</label>
-              </div>
-              <div className="mt-2">
-                <input id="password" type="password" autoComplete="current-password" className="px-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:leading-6 shadow-sm rounded-md bg-[#79889e] ring-0 highlight-white/5" {...register("password", { required: true })} />
-              </div>
-              <div className="mt-2">
-                {errors.password && <span>This field is required</span>}
-              </div>
-            </div>
-            <div>
-              <button
-                type="submit"
-                className={clsx(
-                  "mt-10 transition ease-in-out duration-150 flex w-full justify-center items-center bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
-                  {
-                    "cursor-not-allowed": loading,
-                  },
-                )}
-                disabled={loading}
-              >
-              {loading &&
+          <div className="text-center">
+            <button
+              onClick={() => window.location.href = "/api/auth/login"}
+              disabled={loading}
+              className={clsx(
+                "w-full transition ease-in-out duration-150 flex justify-center items-center bg-[#612ad5] hover:bg-[#612ad5ed] rounded-lg shadow-md px-6 py-3 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
+                {
+                  "cursor-not-allowed opacity-50": loading,
+                },
+              )}
+            >
+              {loading && (
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>}
-                Sign In
-              </button>
-            </div>
-            <div className="text-center mt-2">
-              {errors.response && <span>{errors.response?.message}</span>}
-            </div>
-          </form>
+                </svg>
+              )}
+              Sign in via Auth0
+            </button>
+          </div>
         </div>
       </div>
     </main>

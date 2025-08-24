@@ -1,7 +1,7 @@
 "use client";
 
-import { FC, MouseEvent } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { FC } from "react";
+import { usePathname } from "next/navigation";
 import { Nunito } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,10 +9,8 @@ import {
   DisclosureButton,
   DisclosurePanel,
   Disclosure,
-  Menu,
 } from "@headlessui/react";
-import { useAuthStore } from "@/hooks/useAuthStore";
-import { useStore } from "zustand";
+import { UserDropdown } from "@/components/UserDropdown";
 import clsx from "clsx";
 
 const nunito = Nunito({
@@ -30,15 +28,6 @@ const navigation = [
 
 export const Header: FC = () => {
   const pathName = usePathname();
-  const email = useStore(useAuthStore, (state) => state.email);
-  const { logout } = useAuthStore();
-  const router = useRouter();
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSignOut = (_evt: MouseEvent<HTMLElement>) => {
-    logout();
-    router.push("/auth");
-  };
 
   return (
     <Disclosure as="nav" className={clsx(nunito.className, "bg-[#1f2941]")}>
@@ -70,17 +59,8 @@ export const Header: FC = () => {
               </div>
             </div>
           </div>
-          <div className="m-auto absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-            <p className="ml-3">{email}</p>
-            <Menu as="div" className="relative ml-3">
-              <Link
-                href=""
-                onClick={handleSignOut}
-                className={clsx("bg-gray-700 text-white rounded-md px-3 py-3 text-sm font-medium")}
-              >
-                <span className="text-[18px]">Sign out</span>
-              </Link>
-            </Menu>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+            <UserDropdown />
           </div>
         </div>
       </div>

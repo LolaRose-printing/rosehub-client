@@ -1,24 +1,24 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { verify } from "./lib/fetcher";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function middleware(
-  request: NextRequest,
-): Promise<NextResponse<unknown> | undefined> {
-  const isValid = await verify();
-  const tokenId = request.cookies.get("auth")?.value;
-  const expiration = request.cookies.get("expiration")?.value;
-  const now = Date.now();
-
-  if (!tokenId || !expiration || now >= +expiration || isValid.status !== 200) {
-    const response = NextResponse.redirect(new URL("/auth", request.url));
-    response.cookies.delete("auth");
-    response.cookies.delete("expiration");
-
-    return response;
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Allow auth page and API routes
+  if (pathname.startsWith('/auth') || pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
+    return NextResponse.next();
   }
+  
+  // Check for auth cookie
+  const authCookie = request.cookies.get('auth_user');
+  
+  // If no auth cookie and not on auth page, redirect to auth
+  if (!authCookie && pathname !== '/auth') {
+    return NextResponse.redirect(new URL('/auth', request.url));
+  }
+  
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!auth|_next/static|_next/image|.*\\.png$|favicon.ico|sitemap.xml|robots.txt).*)"],
+  matcher: ["/((?!api/auth|auth|_next/static|_next/image|.*\\.png$|favicon.ico|sitemap.xml|robots.txt).*)"],
 }

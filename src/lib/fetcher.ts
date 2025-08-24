@@ -2,11 +2,13 @@ import { Order } from "@/types/order";
 import { Service } from "@/types/service";
 import { Token } from "@/types/token";
 import { cookies } from "next/headers";
+// import { getAccessToken } from '@auth0/nextjs-auth0/server';
 //import { getCookie } from "cookies-next";
 
-// Common request wrapper using Next.js `cookies()` for server-side usage
+// Common request wrapper for server-side usage
 async function getRequest(url: URL | string): Promise<Response> {
-  const token = (await cookies()).get("auth")?.value;
+  // Get access token from our auth cookies
+  const token = (await cookies()).get("auth_access_token")?.value;
 
   const headers = new Headers({
     "Content-Type": "application/json",
@@ -49,8 +51,16 @@ export const getService = async (slug: string): Promise<Service> => {
 
 export const getOrders = async (): Promise<Order[]> => {
   const url = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/orders`;
+  console.log('Fetching orders from:', url);
+  
   const res = await getRequest(url);
-  if (!res.ok) throw new Error("Failed to fetch orders");
+  console.log('Orders response status:', res.status);
+  
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Unknown error');
+    console.error('Orders fetch failed:', res.status, errorText);
+    throw new Error(`Failed to fetch orders: ${res.status} ${errorText}`);
+  }
   return res.json();
 };
 
@@ -80,4 +90,32 @@ export const verify = async () => {
   const url = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/verify`;
   const res = await getRequest(url);
   return res;
+};
+
+// -----------------------------
+// Service Creation
+// -----------------------------
+
+export const createService = async (serviceData: FormData): Promise<Service> => {
+  // Get access token from our auth cookies
+  const token = (await cookies()).get("auth_access_token")?.value;
+  
+  const headers = new Headers({
+    Accept: "application/json",
+  });
+
+  if (token) {
+    headers.append("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+    method: "POST",
+    headers,
+    body: serviceData,
+    cache: "no-store",
+    mode: "cors",
+  });
+
+  if (!response.ok) throw new Error("Failed to create service");
+  return response.json();
 };
