@@ -14,13 +14,11 @@ export function AdminPanel() {
     try {
       const result = await checkAdminAccess();
       setAdminStatus(`Admin access granted: ${result.message}`);
-    } catch (error: unknown) {
-      // ✅ Type-safe handling
-      if (error instanceof Error) {
-        setAdminStatus(`Admin access denied: ${error.message}`);
-      } else {
-        setAdminStatus(`Admin access denied: ${String(error)}`);
-      }
+    } catch (err: unknown) {
+      // Safely handle unknown error
+      const message =
+        err instanceof Error ? err.message : JSON.stringify(err);
+      setAdminStatus(`Admin access denied: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -28,6 +26,7 @@ export function AdminPanel() {
 
   if (!user) return null;
 
+  // Type-safe access to custom claim
   const userRoles = user?.['https://rosehub.com/roles'] || user?.roles || [];
 
   return (
@@ -50,11 +49,13 @@ export function AdminPanel() {
       </button>
 
       {adminStatus && (
-        <div className={`mt-4 p-3 rounded ${
-          adminStatus.includes('granted') 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
+        <div
+          className={`mt-4 p-3 rounded ${
+            adminStatus.includes('granted') 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+          }`}
+        >
           {adminStatus}
         </div>
       )}
