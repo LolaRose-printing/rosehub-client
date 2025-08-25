@@ -14,8 +14,13 @@ export function AdminPanel() {
     try {
       const result = await checkAdminAccess();
       setAdminStatus(`Admin access granted: ${result.message}`);
-    } catch (error) {
-      setAdminStatus(`Admin access denied: ${error.message}`);
+    } catch (error: unknown) {
+      // ✅ Type-safe handling
+      if (error instanceof Error) {
+        setAdminStatus(`Admin access denied: ${error.message}`);
+      } else {
+        setAdminStatus(`Admin access denied: ${String(error)}`);
+      }
     } finally {
       setLoading(false);
     }
