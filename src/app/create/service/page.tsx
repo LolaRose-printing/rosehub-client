@@ -7,8 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { useAuth0 } from "@auth0/auth0-react";
-
 
 type PrintDimension = {
   width: number;
@@ -361,44 +359,70 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-const { getAccessTokenSilently } = useAuth0();
+  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
 
-const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-  setLoading(true);
-  try {
-    const token = await getAccessTokenSilently();
+      // Core fields
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      formData.append("category", data.category);
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
 
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("price", data.price.toString());
-    formData.append("discount", data.discount.toString());
-    formData.append("category", data.category);
-    formData.append("hasFrontBack", data.hasFrontBack.toString());
-    formData.append("dimensions[width]", data.dimensions.width.toString());
-    formData.append("dimensions[height]", data.dimensions.height.toString());
-    formData.append("dimensions[unit]", data.dimensions.unit);
-    if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
-    formData.append("configurations", JSON.stringify(data.configurations));
+      // 📐 Dimensions as separate fields
+      formData.append("dimensions[width]", data.dimensions.width.toString());
+      formData.append("dimensions[height]", data.dimensions.height.toString());
+      formData.append("dimensions[unit]", data.dimensions.unit);
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+      // 🖼️ File upload
+      if (data.image?.[0]) {
+        formData.append("thumbnail", data.image[0]);
+      }
 
-    if (!response.ok) throw new Error(await response.text());
+      // ⚙️ Configurations as JSON string
+      formData.append(
+        "configurations",
+        JSON.stringify(
+          data.configurations.map(cfg => ({
+            title: cfg.title,
+            items: cfg.items.map(item => ({
+              name: item.name,
+              additionalPrice: item.additionalPrice
+            }))
+          }))
+        )
+      );
 
-    router.push("/services");
-  } catch (err) {
-    console.error(err);
-    setError("response", { type: "manual", message: err instanceof Error ? err.message : "Creation failed" });
-  } finally {
-    setLoading(false);
-  }
-};
+      // 🔗 Determine and log endpoint
+      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCookie("auth")}` },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("[DEBUG] Server rejected payload with:", text);
+        throw new Error(text || "Creation failed");
+      }
+
+      router.push("/services");
+    } catch (error) {
+      console.error("[DEBUG] Submission error:", error);
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Creation failed"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
 
 

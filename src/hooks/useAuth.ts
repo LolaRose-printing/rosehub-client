@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-export interface User {
+interface User {
   sub: string;
   name?: string;
   email?: string;
   picture?: string;
-  roles?: string[];
-  'https://rosehub.com/roles'?: string[];
 }
 
 export function useAuth() {
