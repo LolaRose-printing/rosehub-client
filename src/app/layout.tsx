@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, LayoutProps } from "next";
 import { Inter } from "next/font/google";
-import AuthProvider from "@/components/AuthProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,12 +14,7 @@ export const metadata: Metadata = {
   description: "RoseHub app",
 };
 
-interface RootLayoutProps {
-  children: React.ReactNode;
-  modal?: React.ReactNode;
-}
-
-export default function RootLayout({ children, modal }: RootLayoutProps) {
+export default function RootLayout({ children, modal }: LayoutProps & { modal?: React.ReactNode }) {
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN!;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api";
