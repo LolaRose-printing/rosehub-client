@@ -15,7 +15,12 @@ export function AdminPanel() {
       const result = await checkAdminAccess();
       setAdminStatus(`Admin access granted: ${result.message}`);
     } catch (error) {
-      setAdminStatus(`Admin access denied: ${error.message}`);
+      // Proper error handling for TypeScript
+      if (error instanceof Error) {
+        setAdminStatus(`Admin access denied: ${error.message}`);
+      } else {
+        setAdminStatus(`Admin access denied: ${String(error)}`);
+      }
     } finally {
       setLoading(false);
     }
