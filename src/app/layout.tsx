@@ -2,7 +2,7 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Auth0Provider } from "@auth0/auth0-react";
+//import { Auth0Provider } from "@auth0/auth0-react";
 import "./globals.css";
 
 const inter = Inter({
