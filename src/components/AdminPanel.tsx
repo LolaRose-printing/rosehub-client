@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
-import { AuthContext } from "@/contexts/AuthContext";
+import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { checkAdminAccess } from '@/lib/client-fetcher';
 
 // Extend the User type to include custom properties
 interface ExtendedUser {
@@ -13,69 +13,62 @@ interface ExtendedUser {
   [key: string]: any;
 }
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-  domain: string;
-  clientId: string;
-  audience?: string;
-  redirectUri?: string;
-}
+export function AdminPanel() {
+  const { user } = useAuth();
+  const [adminStatus, setAdminStatus] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
-function Auth0ProviderWithConfig({ children, ...props }: AuthProviderProps) {
-  return (
-    <Auth0Provider
-      domain={props.domain}
-      clientId={props.clientId}
-      authorizationParams={{
-        redirect_uri: props.redirectUri,
-        audience: props.audience,
-      }}
-      cacheLocation="localstorage"
-    >
-      {children}
-    </Auth0Provider>
-  );
-}
-
-function AuthHandler({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, getAccessTokenSilently } = useAuth0();
-  const [authUser, setAuthUser] = useState<any>(null);
-  const [roles, setRoles] = useState<string[]>([]);
-
-  const setUser = (user: any, userRoles: string[]) => {
-    setAuthUser(user);
-    setRoles(userRoles);
+  const handleAdminCheck = async () => {
+    setLoading(true);
+    try {
+      const result = await checkAdminAccess();
+      setAdminStatus(`Admin access granted: ${result.message}`);
+    } catch (error) {
+      // Proper error handling for TypeScript
+      if (error instanceof Error) {
+        setAdminStatus(`Admin access denied: ${error.message}`);
+      } else {
+        setAdminStatus(`Admin access denied: ${String(error)}`);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    if (user) {
-      // Type assertion to handle the custom property
-      const extendedUser = user as ExtendedUser;
-      const userRoles = extendedUser["https://rosehub.com/roles"] || [];
-      setUser(user, userRoles);
-    } else if (!isLoading) {
-      setUser(null, []);
-    }
-  }, [user, isLoading]);
+  if (!user) return null;
+
+  // Type assertion to handle the custom property
+  const extendedUser = user as ExtendedUser;
+  const userRoles = extendedUser?.['https://rosehub.com/roles'] || extendedUser?.roles || [];
 
   return (
-    <AuthContext.Provider
-      value={{
-        user: authUser,
-        roles,
-        isLoading,
-        getAccessToken: getAccessTokenSilently,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
+    <div className="bg-white p-6 rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold mb-4">Admin Panel</h2>
+      
+      <div className="mb-4">
+        <h3 className="font-semibold">User Information:</h3>
+        <p>Email: {extendedUser?.email}</p>
+        <p>Name: {extendedUser?.name}</p>
+        <p>Roles: {userRoles.length > 0 ? userRoles.join(', ') : 'No roles assigned'}</p>
+      </div>
 
-export default function AuthProvider({ children, ...props }: AuthProviderProps) {
-  return (
-    <Auth0ProviderWithConfig {...props}>
-      <AuthHandler>{children}</AuthHandler>
-    </Auth0ProviderWithConfig>
+      <button
+        onClick={handleAdminCheck}
+        disabled={loading}
+        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50"
+      >
+        {loading ? 'Checking...' : 'Check Admin Access'}
+      </button>
+
+      {adminStatus && (
+        <div className={`mt-4 p-3 rounded ${
+          adminStatus.includes('granted') 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {adminStatus}
+        </div>
+      )}
+    </div>
   );
 }
