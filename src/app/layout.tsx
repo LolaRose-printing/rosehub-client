@@ -1,5 +1,3 @@
-"use client";
-
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import AuthProvider from "@/components/AuthProvider";
@@ -22,7 +20,6 @@ interface RootLayoutProps {
 }
 
 export default function RootLayout({ children, modal }: RootLayoutProps) {
-  // Pass env variables to your AuthProvider
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN!;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api";
