@@ -1,7 +1,8 @@
+//"use client";
+
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import AuthProvider from "@/components/AuthProvider";
-
+import { Auth0Provider } from "@auth0/auth0-react";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,29 +16,29 @@ export const metadata: Metadata = {
   description: "RoseHub app",
 };
 
-interface RootLayoutProps {
+export default function RootLayout({
+  children,
+  modal,
+}: Readonly<{
   children: React.ReactNode;
-  modal: React.ReactNode; // Remove the optional modifier (?)
-}
-
-export default function RootLayout({ children, modal }: RootLayoutProps) {
+  modal: React.ReactNode;
+}>) {
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN!;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
-  const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api";
+  const audience = "https://server.lolaprint.us/api";
 
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <AuthProvider
+        <Auth0Provider
           domain={domain}
           clientId={clientId}
-          audience={audience}
-          redirectUri={typeof window !== "undefined" ? window.location.origin : undefined}
+          authorizationParams={{ redirect_uri: typeof window !== "undefined" ? window.location.origin : undefined, audience }}
         >
           {modal}
           <div id="modal-root" />
           {children}
-        </AuthProvider>
+        </Auth0Provider>
       </body>
     </html>
   );
