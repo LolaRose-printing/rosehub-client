@@ -5,6 +5,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/hooks/useAuthStore";
 import { useEffect } from "react";
 
+// Extend the User type to include custom properties
+interface ExtendedUser {
+  email?: string;
+  name?: string;
+  roles?: string[];
+  ['https://rosehub.com/roles']?: string[];
+  [key: string]: any;
+}
+
 function SyncAuthState({ children }: { children: React.ReactNode }) {
   const { user, error, isLoading } = useAuth();
   const { setUser, setLoading } = useAuthStore();
@@ -14,7 +23,9 @@ function SyncAuthState({ children }: { children: React.ReactNode }) {
     setLoading(isLoading);
 
     if (user) {
-      const roles = user["https://rosehub.com/roles"] || [];
+      // Type assertion to handle the custom property
+      const extendedUser = user as ExtendedUser;
+      const roles = extendedUser["https://rosehub.com/roles"] || [];
       setUser(user, roles);
     } else if (!isLoading) {
       setUser(null, []);
