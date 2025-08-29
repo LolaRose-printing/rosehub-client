@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
 
-    const loginUrl = `https://${domain}/authorize?` + new URLSearchParams({
+    // FIXED: Remove the "https://" prefix since domain already includes it
+    const loginUrl = `${domain}/authorize?` + new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: `${baseUrl}/api/auth/callback`,
