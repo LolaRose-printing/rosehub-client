@@ -4,9 +4,8 @@ export async function GET(request: NextRequest) {
   try {
     const domain = process.env.AUTH0_ISSUER_BASE_URL;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const clientSecret = process.env.AUTH0_CLIENT_SECRET; // if needed later
-    const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3001';
-    const audience = process.env.AUTH0_AUDIENCE || 'https://server.lolaprint.us';
+    const baseUrl = process.env.AUTH0_BASE_URL; // REMOVE THE LOCALHOST FALLBACK
+    const audience = process.env.AUTH0_AUDIENCE;
 
     if (!domain || !clientId || !baseUrl) {
       throw new Error('Auth0 configuration missing');
@@ -16,13 +15,12 @@ export async function GET(request: NextRequest) {
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
 
-    // FIXED: Remove the "https://" prefix since domain already includes it
     const loginUrl = `${domain}/authorize?` + new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
-      redirect_uri: `${baseUrl}/api/auth/callback`,
+      redirect_uri: `${baseUrl}/api/auth/callback`, // This will now use https://client.lolaprint.us
       scope: 'openid profile email',
-      audience: audience,
+      audience: audience || 'rosehub-api',
       state: state,
       nonce: nonce
     }).toString();
