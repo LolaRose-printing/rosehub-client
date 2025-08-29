@@ -16,15 +16,23 @@ async function makeAuthenticatedRequest(url: string, options: RequestInit = {}) 
     console.warn('Failed to get access token:', error);
   }
 
-  const headers: HeadersInit = {
+  // Always use Headers object (safe for mutation)
+  const headers = new Headers({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    ...options.headers,
-  };
+  });
+
+  // Merge any custom headers passed in options
+  if (options.headers) {
+    const extraHeaders = new Headers(options.headers);
+    extraHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
 
   // Add Authorization header if we have a token
   if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+    headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
   const response = await fetch(url, {
@@ -39,7 +47,9 @@ async function makeAuthenticatedRequest(url: string, options: RequestInit = {}) 
   return response.json();
 }
 
+// -----------------------------
 // Services API
+// -----------------------------
 export async function getServices(): Promise<Service[]> {
   return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services`);
 }
@@ -48,7 +58,9 @@ export async function getService(slug: string): Promise<Service> {
   return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${slug}`);
 }
 
+// -----------------------------
 // Orders API
+// -----------------------------
 export async function getOrders(): Promise<Order[]> {
   return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/orders`);
 }
@@ -57,12 +69,16 @@ export async function getOrder(orderId: string): Promise<Order> {
   return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/orders/${orderId}`);
 }
 
+// -----------------------------
 // Tokens API
+// -----------------------------
 export async function getTokens(): Promise<Token[]> {
   return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/options/tokens`);
 }
 
+// -----------------------------
 // Auth API
+// -----------------------------
 export async function fetchProfile() {
   const response = await fetch('/api/auth/profile');
   if (!response.ok) {
@@ -79,16 +95,18 @@ export async function checkAdminAccess() {
   return response.json();
 }
 
+// -----------------------------
 // Service creation
+// -----------------------------
 export async function createService(serviceData: FormData): Promise<Service> {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-    method: "POST",
+    method: 'POST',
     body: serviceData,
   });
 
   if (!response.ok) {
     throw new Error('Failed to create service');
   }
-  
+
   return response.json();
 }
