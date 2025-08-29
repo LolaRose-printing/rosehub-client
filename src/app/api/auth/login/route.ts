@@ -2,46 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const error = searchParams.get('error');
+    const domain = process.env.AUTH0_ISSUER_BASE_URL;
+    const clientId = process.env.AUTH0_CLIENT_ID;
+    const baseUrl = process.env.AUTH0_BASE_URL;
+    const audience = process.env.AUTH0_AUDIENCE;
 
-    if (error) {
-      throw new Error(`Auth0 callback error: ${error}`);
+    if (!domain || !clientId || !baseUrl) {
+      throw new Error('Auth0 configuration missing');
     }
 
-    if (!code) {
-      throw new Error('No authorization code received');
-    }
+    // Generate state and nonce for security
+    const state = generateRandomString(32);
+    const nonce = generateRandomString(32);
 
-    // Exchange authorization code for tokens
-    const tokenResponse = await fetch(`https://${process.env.AUTH0_DOMAIN}/oauth/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: process.env.AUTH0_CLIENT_ID!,
-        client_secret: process.env.AUTH0_CLIENT_SECRET!,
-        code: code,
-        redirect_uri: `${process.env.AUTH0_BASE_URL}/api/auth/callback`,
-      }),
-    });
+    const loginUrl = `${domain}/authorize?` + new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: `${baseUrl}/api/auth/callback`,
+      scope: 'openid profile email',
+      audience: audience || 'rosehub-api',
+      state: state,
+      nonce: nonce
+    }).toString();
 
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      throw new Error(`Token exchange failed: ${errorData}`);
-    }
-
-    const tokens = await tokenResponse.json();
-
-    // Redirect to success page or set cookies
-    return NextResponse.redirect(`${process.env.AUTH0_BASE_URL}/auth/success`);
+    return NextResponse.redirect(loginUrl);
 
   } catch (error) {
-    console.error('Callback error:', error);
-    return NextResponse.redirect(`${process.env.AUTH0_BASE_URL}/auth?error=callback_failed`);
+    console.error('Login error:', error);
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
+}
+
+function generateRandomString(length: number): string {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
