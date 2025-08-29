@@ -2,32 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const domain = process.env.AUTH0_DOMAIN;
+    const domain = process.env.AUTH0_ISSUER_BASE_URL;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3001';
-    
-    if (!domain || !clientId) {
+    const clientSecret = process.env.AUTH0_CLIENT_SECRET; // if needed later
+    const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3001';
+    const audience = process.env.AUTH0_AUDIENCE || 'https://server.lolaprint.us';
+
+    if (!domain || !clientId || !baseUrl) {
       throw new Error('Auth0 configuration missing');
     }
-    
+
     // Generate state and nonce for security
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
-    
+
     const loginUrl = `https://${domain}/authorize?` + new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: `${baseUrl}/api/auth/callback`,
       scope: 'openid profile email',
-      audience: 'rosehub-api',
+      audience: audience,
       state: state,
       nonce: nonce
     }).toString();
-    
+
     return NextResponse.redirect(loginUrl);
+
   } catch (error) {
     console.error('Login error:', error);
-    return Response.json({ error: 'Login failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
 }
 
