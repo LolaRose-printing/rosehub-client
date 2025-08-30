@@ -82,25 +82,19 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
     setMessage(null);
     
     try {
-      // Get access token
-      const tokenRes = await fetch("/auth/access-token");
-      if (!tokenRes.ok) throw new Error("Failed to get access token");
-      const tokenData = await tokenRes.json();
-      const accessToken = tokenData.access_token;
-
-      // Update service
+      // Update service via API route
       const response = await fetch(`/api/services/${service.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Update failed");
+        throw new Error(result.error || "Update failed");
       }
 
       setMessage({ type: "success", text: "Service updated successfully!" });
@@ -247,6 +241,7 @@ const ServiceDetailPage = () => {
   const slug = params.slug;
   const [service, setService] = useState<any>(null);
   const [loadingService, setLoadingService] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -259,12 +254,22 @@ const ServiceDetailPage = () => {
 
     const fetchService = async () => {
       setLoadingService(true);
+      setError(null);
       try {
         const res = await fetch(`/api/services/${slug}`);
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error("Service not found");
+          }
+          throw new Error(`Failed to fetch service: ${res.status}`);
+        }
+        
         const data = await res.json();
         setService(data);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching service:", err);
+        setError(err instanceof Error ? err.message : "Failed to load service");
       } finally {
         setLoadingService(false);
       }
@@ -294,6 +299,26 @@ const ServiceDetailPage = () => {
           <p className="text-white mt-4 text-lg">Loading...</p>
         </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-gray-900 text-gray-100">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-400 mb-4">Error</h1>
+            <p className="text-gray-300">{error}</p>
+            <button
+              onClick={() => router.push("/services")}
+              className="mt-6 bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-4 rounded-md"
+            >
+              Back to Services
+            </button>
+          </div>
+        </div>
+      </main>
     );
   }
 
