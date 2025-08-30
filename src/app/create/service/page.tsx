@@ -364,11 +364,16 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      const { accessToken } = await getAccessToken({ 
-        // Make sure the audience matches your backend API
-        audience: "https://server.lolaprint.us/api"
-      });
+      // 1️⃣ Get access token from your App Router endpoint
+      const tokenRes = await fetch("/auth/access-token");
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        throw new Error(errText || "Failed to get access token");
+      }
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
   
+      // 2️⃣ Build FormData
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -382,12 +387,13 @@ export default function CreateServicePage() {
       if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
       formData.append("configurations", JSON.stringify(data.configurations));
   
+      // 3️⃣ Send request to your backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: formData
+        body: formData,
       });
   
       if (!response.ok) {
@@ -398,12 +404,15 @@ export default function CreateServicePage() {
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
-      setError("response", { type: "manual", message: error instanceof Error ? error.message : "Creation failed" });
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Creation failed",
+      });
     } finally {
       setLoading(false);
     }
   };
-
+  
 
 
 
