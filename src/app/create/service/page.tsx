@@ -381,10 +381,27 @@ export default function CreateServicePage() {
       formData.append("discount", data.discount.toString());
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("dimensions[width]", data.dimensions.width.toString());
-      formData.append("dimensions[height]", data.dimensions.height.toString());
-      formData.append("dimensions[unit]", data.dimensions.unit);
-      if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
+  
+      // ✅ Send dimensions as JSON string
+      formData.append("dimensions", JSON.stringify({
+        width: data.dimensions.width,
+        height: data.dimensions.height,
+        unit: data.dimensions.unit
+      }));
+  
+      // ✅ Validate and append image if present
+      if (data.image?.[0]) {
+        const file = data.image[0];
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+          throw new Error("Only JPG, JPEG, PNG and WEBP formats are allowed");
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error("Max file size is 15MB");
+        }
+        formData.append("thumbnail", file);
+      }
+  
+      // ✅ Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
       // 3️⃣ Send request to your backend
@@ -412,6 +429,7 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
+  
   
 
 
