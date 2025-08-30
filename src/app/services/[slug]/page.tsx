@@ -22,6 +22,9 @@ export default function ServiceDetailPage({ params }: Props) {
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Form state
+  const [formData, setFormData] = useState<Partial<Service>>({});
+
   useEffect(() => {
     async function fetchService() {
       try {
@@ -29,6 +32,7 @@ export default function ServiceDetailPage({ params }: Props) {
         if (!res.ok) throw new Error("Failed to fetch service");
         const data: Service = await res.json();
         setService(data);
+        setFormData(data); // prefill form
       } catch (err) {
         console.error(err);
       } finally {
@@ -37,6 +41,40 @@ export default function ServiceDetailPage({ params }: Props) {
     }
     fetchService();
   }, [params.slug]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData({ ...formData, imageUrl: e.target.files[0] });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const body = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) body.append(key, value as any);
+    });
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service?.id}`, {
+        method: "PUT",
+        body,
+      });
+
+      if (!res.ok) throw new Error("Update failed");
+
+      alert("Service updated successfully!");
+      router.push("/services"); // back to list
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update service");
+    }
+  };
 
   if (loading) {
     return (
@@ -64,64 +102,67 @@ export default function ServiceDetailPage({ params }: Props) {
         <IoMdArrowBack size={20} /> Back
       </button>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {service.imageUrl && (
+      <h1 className="text-2xl font-bold mb-6">Update Service</h1>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {service.imageUrl && typeof service.imageUrl === "string" && (
           <img
             src={service.imageUrl}
             alt={service.title}
-            className="w-full md:w-1/3 h-64 object-cover rounded-lg shadow-lg"
+            className="w-48 h-48 object-cover rounded-lg shadow-lg mb-4"
           />
         )}
 
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold mb-2">{service.title}</h1>
-          <p className="text-gray-400 mb-4 capitalize">{service.category}</p>
-          <p className="text-gray-300 mb-4">{service.description}</p>
+        <input
+          type="file"
+          name="imageUrl"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="w-full"
+        />
 
-          <div className="flex flex-wrap gap-4">
-            <div className="bg-gray-800 p-4 rounded-lg min-w-[120px]">
-              <p className="text-gray-400 text-sm">Price</p>
-              <p className="text-white font-bold text-lg">${service.price.toFixed(2)}</p>
-            </div>
+        <input
+          type="text"
+          name="title"
+          value={formData.title || ""}
+          onChange={handleChange}
+          placeholder="Title"
+          className="w-full p-2 border rounded bg-gray-800 text-white"
+        />
 
-            {service.discount && (
-              <div className="bg-gray-800 p-4 rounded-lg min-w-[120px]">
-                <p className="text-gray-400 text-sm">Discount</p>
-                <p className="text-white font-bold text-lg">${service.discount.toFixed(2)}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        <textarea
+          name="description"
+          value={formData.description || ""}
+          onChange={handleChange}
+          placeholder="Description"
+          className="w-full p-2 border rounded bg-gray-800 text-white"
+        />
 
-      {/* Configurations */}
-      {service.configurations && service.configurations.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-2xl font-semibold mb-4">Configurations</h2>
-          <div className="space-y-4">
-            {service.configurations.map((conf, idx) => (
-              <div key={idx} className="bg-gray-800 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">{conf.title}</h3>
-                <ul className="list-disc list-inside text-gray-300">
-                  {conf.items.map((item, i) => (
-                    <li key={i}>
-                      {item.name} {item.additionalPrice > 0 && `(+$${item.additionalPrice.toFixed(2)})`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        <input
+          type="number"
+          name="price"
+          value={formData.price || ""}
+          onChange={handleChange}
+          placeholder="Price"
+          className="w-full p-2 border rounded bg-gray-800 text-white"
+        />
 
-      {/* Order Button */}
-      <div className="mt-8 flex justify-center">
-        <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
-          Order Now
+        <input
+          type="number"
+          name="discount"
+          value={formData.discount || ""}
+          onChange={handleChange}
+          placeholder="Discount"
+          className="w-full p-2 border rounded bg-gray-800 text-white"
+        />
+
+        <button
+          type="submit"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition"
+        >
+          Update Service
         </button>
-      </div>
+      </form>
     </div>
   );
 }
