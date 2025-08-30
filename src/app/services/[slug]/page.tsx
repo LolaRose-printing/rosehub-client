@@ -1,92 +1,67 @@
 "use client";
 
-import { useState, useReducer, useRef, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useReducer, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 
-type PrintDimension = {
-  width: number;
-  height: number;
-  unit: 'px' | 'in' | 'cm';
-};
-
-type PrintConfigurationItem = {
-  name: string;
-  additionalPrice: number;
-};
-
-type PrintConfiguration = {
-  title: string;
-  items: PrintConfigurationItem[];
-};
-
-type ServiceInputs = {
+type PrintDimension = { width: number; height: number; unit: 'px' | 'in' | 'cm' };
+type PrintConfigurationItem = { name: string; additionalPrice: number };
+type PrintConfiguration = { title: string; items: PrintConfigurationItem[] };
+type Service = {
+  id: string;
   title: string;
   description: string;
   price: number;
   discount: number;
-  image?: FileList;
-  dimensions: PrintDimension;
-  hasFrontBack: boolean;
-  configurations: PrintConfiguration[];
   category: 'brochure' | 'booklet' | 'other';
-  response?: string;
+  hasFrontBack: boolean;
+  dimensions: PrintDimension;
+  configurations: PrintConfiguration[];
+  imageUrl?: string;
 };
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
+// Zod schemas
 const dimensionSchema = z.object({
-  width: z.number().min(1, "Width must be at least 1"),
-  height: z.number().min(1, "Height must be at least 1"),
-  unit: z.enum(['px', 'in', 'cm'])
+  width: z.number().min(1),
+  height: z.number().min(1),
+  unit: z.enum(['px','in','cm'])
 });
 
 const configurationItemSchema = z.object({
-  name: z.string().min(1, "Option name is required"),
-  additionalPrice: z.number().min(0, "Price cannot be negative").default(0)
+  name: z.string().min(1),
+  additionalPrice: z.number().min(0)
 });
 
 const configurationSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  items: z.array(configurationItemSchema).min(1, "At least one item is required")
+  title: z.string().min(1),
+  items: z.array(configurationItemSchema).min(1)
 });
 
 const serviceSchema = z.object({
-  title: z.string().min(1, "Service title is required"),
-  description: z.string().min(1, "Description is required"),
-  price: z.number().min(0.01, "Price must be at least $0.01"),
-  discount: z.number().min(0, "Discount cannot be negative"),
-  image: z
-    .any()
-    .optional()
-    .refine(file => !file || file?.length === 1, "Image is required")
-    .refine(file => !file || file?.[0]?.size <= MAX_FILE_SIZE, "Max file size is 15MB")
-    .refine(
-      file => !file || ALLOWED_IMAGE_TYPES.includes(file?.[0]?.type),
-      "Only JPG, JPEG, PNG and WEBP formats are allowed"
-    ),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  price: z.number().min(0.01),
+  discount: z.number().min(0),
   dimensions: dimensionSchema,
   hasFrontBack: z.boolean(),
-  configurations: z.array(configurationSchema).min(1, "At least one configuration is required"),
-  category: z.enum(['brochure', 'booklet', 'other']).default('other')
+  configurations: z.array(configurationSchema).min(1),
+  category: z.enum(['brochure','booklet','other']),
+  image: z.any().optional()
 });
 
 enum ConfigActionType {
-  ADD_CONFIG,
-  REMOVE_CONFIG,
-  ADD_ITEM,
-  REMOVE_ITEM,
-  LOAD_TEMPLATE_CONFIGS,
-  UPDATE_TITLE,
-  UPDATE_ITEM_NAME,
-  UPDATE_ITEM_PRICE,
+  ADD_CONFIG, REMOVE_CONFIG, ADD_ITEM, REMOVE_ITEM, UPDATE_TITLE, UPDATE_ITEM_NAME, UPDATE_ITEM_PRICE, LOAD_CONFIGS
 }
 
-type ConfigAction =
+type ConfigAction = 
   | { type: ConfigActionType.ADD_CONFIG }
   | { type: ConfigActionType.REMOVE_CONFIG; payload: number }
   | { type: ConfigActionType.ADD_ITEM; payload: { configId: number; item: PrintConfigurationItem } }
@@ -94,197 +69,73 @@ type ConfigAction =
   | { type: ConfigActionType.UPDATE_TITLE; payload: { configId: number; title: string } }
   | { type: ConfigActionType.UPDATE_ITEM_NAME; payload: { configId: number; itemIdx: number; name: string } }
   | { type: ConfigActionType.UPDATE_ITEM_PRICE; payload: { configId: number; itemIdx: number; price: number } }
-  | { type: ConfigActionType.LOAD_TEMPLATE_CONFIGS; payload: PrintConfiguration[] };
+  | { type: ConfigActionType.LOAD_CONFIGS; payload: PrintConfiguration[] };
 
 function configReducer(state: PrintConfiguration[], action: ConfigAction): PrintConfiguration[] {
-  switch (action.type) {
-    case ConfigActionType.ADD_CONFIG:
-      return [...state, { title: "New Option Group", items: [{ name: "New Option", additionalPrice: 0 }] }];
-    case ConfigActionType.REMOVE_CONFIG:
-      return state.filter((_, idx) => idx !== action.payload);
-    case ConfigActionType.ADD_ITEM:
-      return state.map((config, idx) =>
-        idx === action.payload.configId
-          ? { ...config, items: [...config.items, action.payload.item] }
-          : config
-      );
-    case ConfigActionType.REMOVE_ITEM:
-      return state.map((config, idx) =>
-        idx === action.payload.configId
-          ? { ...config, items: config.items.filter((_, i) => i !== action.payload.itemIdx) }
-          : config
-      );
-    case ConfigActionType.UPDATE_TITLE:
-      return state.map((config, idx) =>
-        idx === action.payload.configId
-          ? { ...config, title: action.payload.title }
-          : config
-      );
-    case ConfigActionType.UPDATE_ITEM_NAME:
-      return state.map((config, idx) =>
-        idx === action.payload.configId
-          ? {
-            ...config,
-            items: config.items.map((item, i) =>
-              i === action.payload.itemIdx
-                ? { ...item, name: action.payload.name }
-                : item
-            )
-          }
-          : config
-      );
-    case ConfigActionType.UPDATE_ITEM_PRICE:
-      return state.map((config, idx) =>
-        idx === action.payload.configId
-          ? {
-            ...config,
-            items: config.items.map((item, i) =>
-              i === action.payload.itemIdx
-                ? { ...item, additionalPrice: action.payload.price }
-                : item
-            )
-          }
-          : config
-      );
-    case ConfigActionType.LOAD_TEMPLATE_CONFIGS:
-      return action.payload;
-    default:
-      return state;
+  switch(action.type){
+    case ConfigActionType.ADD_CONFIG: return [...state, { title: "New Option Group", items: [{ name:"New Option", additionalPrice:0 }] }];
+    case ConfigActionType.REMOVE_CONFIG: return state.filter((_, idx)=>idx!==action.payload);
+    case ConfigActionType.ADD_ITEM: return state.map((c,i)=>i===action.payload.configId?{...c, items:[...c.items, action.payload.item]}:c);
+    case ConfigActionType.REMOVE_ITEM: return state.map((c,i)=>i===action.payload.configId?{...c, items:c.items.filter((_,j)=>j!==action.payload.itemIdx)}:c);
+    case ConfigActionType.UPDATE_TITLE: return state.map((c,i)=>i===action.payload.configId?{...c, title:action.payload.title}:c);
+    case ConfigActionType.UPDATE_ITEM_NAME: return state.map((c,i)=>i===action.payload.configId?{...c, items:c.items.map((item,j)=>j===action.payload.itemIdx?{...item,name:action.payload.name}:item)}:c);
+    case ConfigActionType.UPDATE_ITEM_PRICE: return state.map((c,i)=>i===action.payload.configId?{...c, items:c.items.map((item,j)=>j===action.payload.itemIdx?{...item,additionalPrice:action.payload.price}:item)}:c);
+    case ConfigActionType.LOAD_CONFIGS: return action.payload;
+    default: return state;
   }
 }
 
-export default function UpdateServicePage() {
+export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const serviceId = searchParams.get("id"); // Pass ?id=<serviceId> in the URL
-
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [configs, dispatch] = useReducer(configReducer, [{ title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] }]);
-  const [loading, setLoading] = useState(false);
+  const [service, setService] = useState<Service | null>(null);
+  const [configs, dispatch] = useReducer(configReducer, []);
+  const [imagePreview, setImagePreview] = useState<string|null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-    setError,
-    trigger
-  } = useForm<ServiceInputs>({
-    resolver: zodResolver(serviceSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      price: 0,
-      discount: 0,
-      dimensions: { width: 0, height: 0, unit: 'px' },
-      hasFrontBack: false,
-      configurations: configs,
-      category: 'other'
-    }
+  const { register, handleSubmit, setValue, watch, formState:{ errors }, trigger } = useForm<Service>({
+    resolver: zodResolver(serviceSchema)
   });
-
-  // Load existing service for update
-  useEffect(() => {
-    if (!serviceId) return;
-
-    const fetchService = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${serviceId}`);
-        if (!res.ok) throw new Error("Failed to fetch service data");
-        const service = await res.json();
-
-        setValue("title", service.title);
-        setValue("description", service.description);
-        setValue("price", service.price);
-        setValue("discount", service.discount);
-        setValue("category", service.category);
-        setValue("hasFrontBack", service.hasFrontBack);
-        setValue("dimensions", service.dimensions);
-        dispatch({ type: ConfigActionType.LOAD_TEMPLATE_CONFIGS, payload: service.configurations });
-
-        if (service.imageUrl) setImagePreview(service.imageUrl);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchService();
-  }, [serviceId, setValue]);
-
-  useEffect(() => {
-    setValue("configurations", configs);
-  }, [configs, setValue]);
 
   const watchDimensions = watch("dimensions");
   const watchImage = watch("image");
 
-  useEffect(() => {
-    if (watchImage?.[0]) {
+  // Load service by slug
+  useEffect(()=>{
+    const fetchService = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${params.slug}`);
+        const data = await res.json();
+        setService(data);
+        // populate form
+        setValue("title", data.title);
+        setValue("description", data.description);
+        setValue("price", data.price);
+        setValue("discount", data.discount);
+        setValue("category", data.category);
+        setValue("hasFrontBack", data.hasFrontBack);
+        setValue("dimensions", data.dimensions);
+        setValue("configurations", data.configurations);
+        dispatch({ type: ConfigActionType.LOAD_CONFIGS, payload: data.configurations });
+        if(data.imageUrl) setImagePreview(data.imageUrl);
+      } catch(e) { console.error(e); }
+    };
+    fetchService();
+  }, [params.slug, setValue]);
+
+  // Image preview
+  useEffect(()=>{
+    if(watchImage?.[0]){
       const file = watchImage[0];
       const reader = new FileReader();
-
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result as string;
-
-        img.onload = () => {
-          setImagePreview(img.src);
-          if (previewCanvasRef.current && watchDimensions.width > 0 && watchDimensions.height > 0) {
-            const canvas = previewCanvasRef.current;
-            const ctx = canvas.getContext('2d');
-
-            canvas.width = 300;
-            canvas.height = 300;
-
-            if (ctx) {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-              const scaleX = canvas.width / watchDimensions.width;
-              const scaleY = canvas.height / watchDimensions.height;
-              const scale = Math.min(scaleX, scaleY);
-
-              const newWidth = watchDimensions.width * scale;
-              const newHeight = watchDimensions.height * scale;
-
-              const offsetX = (canvas.width - newWidth) / 2;
-              const offsetY = (canvas.height - newHeight) / 2;
-
-              ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
-
-              ctx.strokeStyle = '#f87171';
-              ctx.lineWidth = 2;
-              ctx.setLineDash([5, 5]);
-              ctx.strokeRect(offsetX, offsetY, newWidth, newHeight);
-              ctx.setLineDash([]);
-
-              ctx.fillStyle = '#f87171';
-              ctx.font = '12px Arial';
-              ctx.textAlign = 'center';
-              ctx.fillText(
-                `${watchDimensions.width}×${watchDimensions.height}${watchDimensions.unit}`,
-                canvas.width / 2,
-                offsetY + newHeight + 20
-              );
-            }
-          }
-        };
-      };
-
+      reader.onloadend = ()=> setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
-  }, [watchImage, watchDimensions]);
+  },[watchImage]);
 
-  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-    if (!serviceId) return;
-
+  const onSubmit: SubmitHandler<Service> = async(data)=>{
     setLoading(true);
-    try {
-      const tokenRes = await fetch("/auth/access-token");
-      if (!tokenRes.ok) throw new Error("Failed to get access token");
-      const { access_token } = await tokenRes.json();
-
+    try{
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -293,44 +144,125 @@ export default function UpdateServicePage() {
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
       formData.append("dimensions", JSON.stringify(data.dimensions));
+      formData.append("configurations", JSON.stringify(configs));
+      if(data.image?.[0]) formData.append("thumbnail", data.image[0]);
 
-      if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
-
-      formData.append("configurations", JSON.stringify(data.configurations));
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${serviceId}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service?.id}/update`,{
+        method:"PUT",
         body: formData
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Update failed");
-      }
+      if(!response.ok) throw new Error("Update failed");
 
       router.push("/services");
-    } catch (error) {
-      console.error("[DEBUG] Update error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Update failed",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }catch(e){
+      console.error(e);
+      alert("Service update failed");
+    }finally{ setLoading(false); }
   };
 
+  if(!service) return <p className="text-white text-center p-6">Loading service...</p>;
+
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
-      <h1 className="text-2xl font-bold text-center mb-8">{serviceId ? "Update Service" : "Create New Service"}</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* --- Include all fields from your original form here --- */}
-        {/* For brevity, you can reuse the same JSX as your CreateServicePage */}
-        {/* Just keep the same watch, register, configs, image preview logic */}
-      </form>
+    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
+      <Header />
+
+      <main className="flex-1 max-w-6xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">Update Service: {service.title}</h1>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Title and Description */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label>Title</label>
+              <input {...register("title")} className="w-full rounded bg-gray-700 p-2"/>
+              {errors.title && <p className="text-red-500">{errors.title.message}</p>}
+            </div>
+            <div>
+              <label>Description</label>
+              <textarea {...register("description")} className="w-full rounded bg-gray-700 p-2"/>
+              {errors.description && <p className="text-red-500">{errors.description.message}</p>}
+            </div>
+          </div>
+
+          {/* Price, Discount, Category */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label>Price</label><input type="number" {...register("price",{valueAsNumber:true})} className="w-full rounded bg-gray-700 p-2"/></div>
+            <div><label>Discount</label><input type="number" {...register("discount",{valueAsNumber:true})} className="w-full rounded bg-gray-700 p-2"/></div>
+            <div>
+              <label>Category</label>
+              <select {...register("category")} className="w-full rounded bg-gray-700 p-2">
+                <option value="other">Other</option>
+                <option value="brochure">Brochure</option>
+                <option value="booklet">Booklet</option>
+              </select>
+            </div>
+            <div className="flex items-center"><label><input type="checkbox" {...register("hasFrontBack")}/> Double-sided</label></div>
+          </div>
+
+          {/* Dimensions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label>Width</label><input type="number" {...register("dimensions.width",{valueAsNumber:true})} className="w-full rounded bg-gray-700 p-2"/></div>
+            <div><label>Height</label><input type="number" {...register("dimensions.height",{valueAsNumber:true})} className="w-full rounded bg-gray-700 p-2"/></div>
+            <div>
+              <label>Unit</label>
+              <select {...register("dimensions.unit")} className="w-full rounded bg-gray-700 p-2">
+                <option value="px">px</option>
+                <option value="in">in</option>
+                <option value="cm">cm</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Image */}
+          <div>
+            <label>Thumbnail</label>
+            <input type="file" {...register("image")} accept={ALLOWED_IMAGE_TYPES.join(",")} className="block"/>
+            {imagePreview && <img src={imagePreview} className="w-48 h-48 object-cover mt-2 rounded"/>}
+          </div>
+
+          {/* Configurations */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Configurations</h2>
+            {configs.map((conf, idx)=>(
+              <div key={idx} className="border p-4 rounded space-y-2">
+                <div className="flex items-center justify-between">
+                  <input
+                    value={conf.title}
+                    onChange={(e)=>dispatch({type:ConfigActionType.UPDATE_TITLE,payload:{configId:idx,title:e.target.value}})}
+                    className="w-full bg-gray-700 p-2 rounded"
+                  />
+                  <button type="button" onClick={()=>dispatch({type:ConfigActionType.REMOVE_CONFIG,payload:idx})} className="text-red-500 ml-2"><IoMdRemove /></button>
+                </div>
+                <div className="space-y-2">
+                  {conf.items.map((item,j)=>(
+                    <div key={j} className="flex gap-2 items-center">
+                      <input
+                        value={item.name}
+                        onChange={(e)=>dispatch({type:ConfigActionType.UPDATE_ITEM_NAME,payload:{configId:idx,itemIdx:j,name:e.target.value}})}
+                        className="flex-1 bg-gray-700 p-2 rounded"
+                      />
+                      <input
+                        type="number"
+                        value={item.additionalPrice}
+                        onChange={(e)=>dispatch({type:ConfigActionType.UPDATE_ITEM_PRICE,payload:{configId:idx,itemIdx:j,price:parseFloat(e.target.value)}})}
+                        className="w-24 bg-gray-700 p-2 rounded"
+                      />
+                      <button type="button" onClick={()=>dispatch({type:ConfigActionType.REMOVE_ITEM,payload:{configId:idx,itemIdx:j}})} className="text-red-500"><IoMdRemove /></button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={()=>dispatch({type:ConfigActionType.ADD_ITEM,payload:{configId:idx,item:{name:"New Option",additionalPrice:0}}})} className="flex items-center gap-1 text-green-400"><IoMdAdd /> Add Item</button>
+              </div>
+            ))}
+            <button type="button" onClick={()=>dispatch({type:ConfigActionType.ADD_CONFIG})} className="flex items-center gap-1 text-green-400"><IoMdAdd /> Add Configuration Group</button>
+          </div>
+
+          <button type="submit" disabled={loading} className="bg-blue-600 px-6 py-3 rounded mt-6">{loading ? "Updating..." : "Update Service"}</button>
+        </form>
+      </main>
+
+      <Footer />
     </div>
   );
 }
