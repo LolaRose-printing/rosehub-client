@@ -4,29 +4,47 @@ export async function GET(request: NextRequest) {
   try {
     const domain = process.env.AUTH0_ISSUER_BASE_URL;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const baseUrl = process.env.AUTH0_BASE_URL;
     const audience = process.env.AUTH0_AUDIENCE;
 
-    if (!domain || !clientId || !baseUrl) {
+    if (!domain || !clientId) {
       throw new Error('Auth0 configuration missing');
+    }
+
+    // Force production domain
+    const baseUrl =
+      process.env.NODE_ENV === 'production'
+        ? 'https://client.lolaprint.us'
+        : process.env.AUTH0_BASE_URL;
+
+    if (!baseUrl) {
+      throw new Error('AUTH0_BASE_URL not set');
     }
 
     // Generate state and nonce for security
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
 
-    const loginUrl = `${domain}/authorize?` + new URLSearchParams({
-      response_type: 'code',
-      client_id: clientId,
-      redirect_uri: `${baseUrl}/api/auth/callback`,
-      scope: 'openid profile email',
-      audience: audience || 'rosehub-api',
-      state: state,
-      nonce: nonce
-    }).toString();
+    const loginUrl =
+      `${domain}/authorize?` +
+      new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: `${baseUrl}/api/auth/callback`,
+        scope: 'openid profile email',
+        audience: audience || 'rosehub-api',
+        state: state,
+        nonce: nonce,
+      }).toString();
+
+    // Debug logging
+    console.log('=== Auth0 Login URL ===');
+    console.log('loginUrl:', loginUrl);
+    console.log('domain:', domain);
+    console.log('clientId:', clientId);
+    console.log('audience:', audience);
+    console.log('redirect_uri:', `${baseUrl}/api/auth/callback`);
 
     return NextResponse.redirect(loginUrl);
-
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
@@ -36,5 +54,7 @@ export async function GET(request: NextRequest) {
 function generateRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(array, (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
 }
