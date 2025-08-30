@@ -1,7 +1,6 @@
 "use client";
 
-import { NextPage } from "next";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -241,10 +240,11 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
   );
 };
 
-const ServiceDetailPage: NextPage = () => {
+const ServiceDetailPage = () => {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params.slug;
   const [service, setService] = useState<any>(null);
   const [loadingService, setLoadingService] = useState(true);
 
