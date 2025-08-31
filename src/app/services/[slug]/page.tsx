@@ -45,6 +45,7 @@ const ServiceDetailsCard = ({ service }: { service: any }) => (
 
 // Update Service Form Component
 const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () => void }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -78,17 +79,22 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
   }, [service, setValue]);
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    if (!user?.token) {
+      setMessage({ type: "error", text: "You must be logged in to update the service" });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
     try {
-      // Update service via API route
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${service.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/services/${service.id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
           },
           body: JSON.stringify(data),
         }
@@ -290,9 +296,7 @@ const ServiceDetailPage = () => {
       setLoadingService(true);
       setError(null);
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/services/${slug}`
-        );
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${slug}`);
 
         if (!res.ok) {
           if (res.status === 404) {
@@ -317,9 +321,7 @@ const ServiceDetailPage = () => {
   const handleServiceUpdate = async () => {
     if (!slug) return;
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${slug}`
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services/${slug}`);
       const data = await res.json();
       setService(data);
     } catch (err) {
