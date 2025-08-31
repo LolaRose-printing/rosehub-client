@@ -46,9 +46,9 @@ const ServiceDetailsCard = ({ service }: { service: any }) => (
 // Update Service Form Component
 const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () => void }) => {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{type: string, text: string} | null>(null);
+  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
+
   const {
     register,
     handleSubmit,
@@ -61,7 +61,7 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
       description: service?.description || "",
       price: service?.price || 0,
       discount: service?.discount || 0,
-    }
+    },
   });
 
   useEffect(() => {
@@ -70,7 +70,7 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
       setValue("description", service.description);
       setValue("price", service.price);
       setValue("discount", service.discount);
-      
+
       if (service.imageUrl) {
         setImagePreview(service.imageUrl);
       }
@@ -80,16 +80,19 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     setMessage(null);
-    
+
     try {
       // Update service via API route
-      const response = await fetch(`/api/services/${service.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${service.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }
+      );
 
       const result = await response.json();
 
@@ -101,9 +104,10 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
       onUpdate(); // Refresh the service data
     } catch (error) {
       console.error("Update error:", error);
-      setMessage({ 
-        type: "error", 
-        text: error instanceof Error ? error.message : "Update failed. Please try again." 
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error ? error.message : "Update failed. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -132,7 +136,7 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
           <div className="flex items-center justify-center w-full">
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-700 border-gray-600 hover:bg-gray-600 transition">
               {imagePreview ? (
-                <div 
+                <div
                   className="w-full h-full rounded-lg bg-cover bg-center"
                   style={{ backgroundImage: `url(${imagePreview})` }}
                 />
@@ -175,7 +179,9 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
             className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             placeholder="Service Description"
           />
-          {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>}
+          {errors.description && (
+            <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -190,7 +196,9 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
               className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               placeholder="0.00"
             />
-            {errors.price && <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>}
+            {errors.price && (
+              <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>
+            )}
           </div>
 
           <div>
@@ -204,12 +212,20 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
               className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               placeholder="0.00"
             />
-            {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
+            {errors.discount && (
+              <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>
+            )}
           </div>
         </div>
 
         {message && (
-          <div className={`p-3 rounded-md ${message.type === "success" ? "bg-green-900 text-green-300" : "bg-red-900 text-red-300"}`}>
+          <div
+            className={`p-3 rounded-md ${
+              message.type === "success"
+                ? "bg-green-900 text-green-300"
+                : "bg-red-900 text-red-300"
+            }`}
+          >
             {message.text}
           </div>
         )}
@@ -221,13 +237,31 @@ const UpdateServiceForm = ({ service, onUpdate }: { service: any; onUpdate: () =
         >
           {loading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Updating...
             </>
-          ) : "Update Service"}
+          ) : (
+            "Update Service"
+          )}
         </button>
       </form>
     </div>
@@ -256,15 +290,17 @@ const ServiceDetailPage = () => {
       setLoadingService(true);
       setError(null);
       try {
-        const res = await fetch(`/api/services/${slug}`);
-        
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/services/${slug}`
+        );
+
         if (!res.ok) {
           if (res.status === 404) {
             throw new Error("Service not found");
           }
           throw new Error(`Failed to fetch service: ${res.status}`);
         }
-        
+
         const data = await res.json();
         setService(data);
       } catch (err) {
@@ -279,11 +315,11 @@ const ServiceDetailPage = () => {
   }, [slug]);
 
   const handleServiceUpdate = async () => {
-    // Refetch the service data after update
     if (!slug) return;
-    
     try {
-      const res = await fetch(`/api/services/${slug}`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services/${slug}`
+      );
       const data = await res.json();
       setService(data);
     } catch (err) {
@@ -331,7 +367,9 @@ const ServiceDetailPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold mb-2 text-white">{service.title}</h1>
-          <p className="text-gray-400 text-lg">Manage your service details and configurations</p>
+          <p className="text-gray-400 text-lg">
+            Manage your service details and configurations
+          </p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
