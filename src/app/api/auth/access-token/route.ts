@@ -5,11 +5,11 @@ export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies(); // no await needed
     const tokenCookie = cookieStore.get('auth_access_token');
-    
+
     if (!tokenCookie) {
       return NextResponse.json({ error: 'No access token available' }, { status: 401 });
     }
-    
+
     return NextResponse.json({ access_token: tokenCookie.value });
   } catch (error) {
     console.error('Access token error:', error);

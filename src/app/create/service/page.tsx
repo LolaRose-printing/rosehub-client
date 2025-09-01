@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { getAccessToken } from "@auth0/nextjs-auth0";
+
 
 type PrintDimension = {
   width: number;
@@ -363,10 +363,11 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // Get access token from Auth0
-      const authResult = await getAccessToken();
+      // Fetch access token from your API route
+      const tokenResponse = await fetch("/api/auth/access-token");
+      const tokenData = await tokenResponse.json();
   
-      if (!authResult?.access_token) {
+      if (!tokenData.access_token) {
         throw new Error("No access token available. Please log in again.");
       }
   
@@ -386,13 +387,13 @@ export default function CreateServicePage() {
   
       formData.append("configurations", JSON.stringify(data.configurations));
   
-      // Send request to backend
+      // Send request to backend with token
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${authResult.access_token}`,
+            Authorization: `Bearer ${tokenData.access_token}`,
           },
           body: formData,
         }
