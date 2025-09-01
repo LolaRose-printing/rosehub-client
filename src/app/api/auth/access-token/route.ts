@@ -1,18 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies(); // ✅ await here
+    const cookieStore = await cookies();
     const tokenCookie = cookieStore.get('auth_access_token');
-
+    
     if (!tokenCookie) {
-      return NextResponse.json({ error: 'No access token available' }, { status: 401 });
+      return Response.json({ error: 'No access token available' }, { status: 401 });
     }
-
-    return NextResponse.json({ access_token: tokenCookie.value });
+    
+    return Response.json({ 
+      access_token: tokenCookie.value 
+    });
   } catch (error) {
     console.error('Access token error:', error);
-    return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 });
+    return Response.json({ error: 'Failed to get access token' }, { status: 500 });
   }
 }
