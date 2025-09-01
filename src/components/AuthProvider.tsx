@@ -5,7 +5,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useAuthStore } from "@/hooks/useAuthStore";
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, error, loginWithRedirect } = useAuth0();
+  const { user, isLoading, error } = useAuth0();
   const { setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
@@ -15,12 +15,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       const roles = user["https://rosehub.com/roles"] || [];
       setUser(user, roles);
     } else if (!isLoading) {
-      loginWithRedirect().catch(err => console.error("Login redirect failed:", err));
       setUser(null, []);
     }
 
     if (error) console.error("Auth error:", error);
-  }, [user, isLoading, error, setUser, setLoading, loginWithRedirect]);
+  }, [user, isLoading, error, setUser, setLoading]);
 
   return <>{children}</>;
 }
