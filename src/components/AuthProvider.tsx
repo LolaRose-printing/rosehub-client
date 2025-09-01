@@ -1,26 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
-import { useUser } from '@auth0/nextjs-auth0/client'; // Changed import
-import { useAuthStore } from "@/hooks/useAuthStore";
+import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/hooks/useAuthStore';
+import { useEffect } from 'react';
 
-export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, error } = useUser(); // Changed from useAuth0
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { user, error, isLoading } = useAuth();
   const { setUser, setLoading } = useAuthStore();
 
+  // Sync auth state with our store
   useEffect(() => {
     setLoading(isLoading);
-
+    
     if (user) {
-      // Extract roles from user object - might be in different property
-      const roles = user["https://rosehub.com/roles"] || user.roles || [];
+      const roles = user['https://rosehub.com/roles'] || [];
       setUser(user, roles);
     } else if (!isLoading) {
       setUser(null, []);
     }
+  }, [user, isLoading, setUser, setLoading]);
 
-    if (error) console.error("Auth error:", error);
-  }, [user, isLoading, error, setUser, setLoading]);
+  if (error) {
+    console.error('Auth error:', error);
+  }
 
   return <>{children}</>;
 }

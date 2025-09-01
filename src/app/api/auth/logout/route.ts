@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   try {
     const domain = process.env.AUTH0_DOMAIN;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const baseUrl = process.env.APP_BASE_URL;
+    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3001';
     
     if (!domain || !clientId) {
       throw new Error('Auth0 configuration missing');
