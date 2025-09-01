@@ -364,7 +364,14 @@ const { getAccessTokenSilently } = useAuth0();
 const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
   setLoading(true);
   try {
+    // Get token from Auth0
     const token = await getAccessTokenSilently();
+
+    // If token is undefined, handle gracefully
+    if (!token) {
+      setError("response", { type: "manual", message: "No authentication token found. Please log in." });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("title", data.title);
@@ -397,7 +404,6 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(false);
   }
 };
-
 
 
   return (
