@@ -3,7 +3,14 @@ import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
-    const { accessToken } = await getAccessToken(req, new Headers(req.headers));
+    // Convert the incoming Request to a full URL
+    const url = new URL(req.url); // This fixes the Invalid URL error
+
+    const { accessToken } = await getAccessToken({
+      req,
+      // v4 expects req + url (for cookies, headers, etc.)
+      url: url.toString(),
+    });
 
     if (!accessToken) {
       return NextResponse.json(
