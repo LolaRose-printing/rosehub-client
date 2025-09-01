@@ -363,16 +363,14 @@ export default function CreateServicePage() {
  
 const { getAccessTokenSilently } = useAuth0();
 
-const { getAccessTokenSilently } = useAuth0();
-
 const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
   setLoading(true);
 
   try {
-    // 1️⃣ Get a valid access token from Auth0 using environment variables
+    // 1️⃣ Get a valid access token from Auth0
     const accessToken = await getAccessTokenSilently({
-      audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api",
-      scope: "openid profile email offline_access", // offline_access allows refresh tokens
+      audience: "https://server.lolaprint.us/api",
+      scope: "openid profile email offline_access",
     });
 
     // 2️⃣ Build FormData
@@ -384,25 +382,19 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     formData.append("category", data.category);
     formData.append("hasFrontBack", data.hasFrontBack.toString());
 
-    formData.append(
-      "dimensions",
-      JSON.stringify({
-        width: data.dimensions.width,
-        height: data.dimensions.height,
-        unit: data.dimensions.unit,
-      })
-    );
+    formData.append("dimensions", JSON.stringify({
+      width: data.dimensions.width,
+      height: data.dimensions.height,
+      unit: data.dimensions.unit,
+    }));
 
-    // Validate and append image
     if (data.image?.[0]) {
       const file = data.image[0];
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type))
-        throw new Error("Only JPG, JPEG, PNG, and WEBP formats are allowed");
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) throw new Error("Only JPG, JPEG, PNG, WEBP allowed");
       if (file.size > MAX_FILE_SIZE) throw new Error("Max file size is 15MB");
       formData.append("thumbnail", file);
     }
 
-    // Append configurations
     formData.append("configurations", JSON.stringify(data.configurations));
 
     // 3️⃣ Send request to backend
