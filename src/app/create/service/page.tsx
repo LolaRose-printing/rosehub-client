@@ -6,8 +6,9 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
-import { useAuthStore } from "@/hooks/useAuthStore";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
+import { useAuth0 } from "@auth0/auth0-react";
+
 
 type PrintDimension = {
   width: number;
@@ -360,47 +361,44 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-  const { user } = useAuthStore();
+const { getAccessTokenSilently } = useAuth0();
 
-  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-    setLoading(true);
-  
-    try {
-      if (!user?.accessToken) {
-        throw new Error("No authentication token found. Please log in.");
-      }
-  
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      formData.append("category", data.category);
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("dimensions[width]", data.dimensions.width.toString());
-      formData.append("dimensions[height]", data.dimensions.height.toString());
-      formData.append("dimensions[unit]", data.dimensions.unit);
-      if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
-      formData.append("configurations", JSON.stringify(data.configurations));
-  
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${user.accessToken}`,
-        },
-        body: formData,
-      });
-  
-      if (!response.ok) throw new Error(await response.text());
-  
-      router.push("/services");
-    } catch (err) {
-      console.error(err);
-      setError("response", { type: "manual", message: err instanceof Error ? err.message : "Creation failed" });
-    } finally {
-      setLoading(false);
-    }
-  };
+const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+  setLoading(true);
+  try {
+    const token = await getAccessTokenSilently();
+
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("price", data.price.toString());
+    formData.append("discount", data.discount.toString());
+    formData.append("category", data.category);
+    formData.append("hasFrontBack", data.hasFrontBack.toString());
+    formData.append("dimensions[width]", data.dimensions.width.toString());
+    formData.append("dimensions[height]", data.dimensions.height.toString());
+    formData.append("dimensions[unit]", data.dimensions.unit);
+    if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
+    formData.append("configurations", JSON.stringify(data.configurations));
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    router.push("/services");
+  } catch (err) {
+    console.error(err);
+    setError("response", { type: "manual", message: err instanceof Error ? err.message : "Creation failed" });
+  } finally {
+    setLoading(false);
+  }
+};
 
 
 

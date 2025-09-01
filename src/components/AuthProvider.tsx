@@ -1,37 +1,23 @@
 "use client";
-
-import { useAuth0 } from "@auth0/auth0-react";
-import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/hooks/useAuthStore";
+import { useEffect } from "react";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, getAccessTokenSilently } = useAuth0();
-  const { setUser, setLoading, setToken } = useAuthStore();
+  const { user, error, isLoading } = useAuth();
+  const { setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
     setLoading(isLoading);
-
-    async function fetchToken() {
-      if (user && getAccessTokenSilently) {
-        try {
-          const token = await getAccessTokenSilently();
-          setToken(token);
-        } catch (err) {
-          console.error("fetch token:", err);
-        }
-      }
-    }
-
-    fetchToken();
-
     if (user) {
       const roles = user["https://rosehub.com/roles"] || [];
       setUser(user, roles);
     } else if (!isLoading) {
       setUser(null, []);
-      setToken(null);
     }
-  }, [user, isLoading, getAccessTokenSilently, setUser, setLoading, setToken]);
+  }, [user, isLoading, setUser, setLoading]);
+
+  if (error) console.error("Auth error:", error);
 
   return <>{children}</>;
 }
