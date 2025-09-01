@@ -1,23 +1,33 @@
 "use client";
-import { useAuth } from "@/hooks/useAuth";
+
+import { Auth0Provider } from "@auth0/auth0-react";
 import { useAuthStore } from "@/hooks/useAuthStore";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, error, isLoading } = useAuth();
-  const { setUser, setLoading } = useAuthStore();
+  const { setUser } = useAuthStore();
+  const router = useRouter();
 
-  useEffect(() => {
-    setLoading(isLoading);
-    if (user) {
-      const roles = user["https://rosehub.com/roles"] || [];
-      setUser(user, roles);
-    } else if (!isLoading) {
-      setUser(null, []);
-    }
-  }, [user, isLoading, setUser, setLoading]);
+  const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN!;
+  const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
+  const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE!;
 
-  if (error) console.error("Auth error:", error);
+  const onRedirectCallback = (appState: any) => {
+    // Redirect after login
+    router.push(appState?.returnTo || "/");
+  };
 
-  return <>{children}</>;
+  return (
+    <Auth0Provider
+      domain={domain}
+      clientId={clientId}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+        audience,
+      }}
+      onRedirectCallback={onRedirectCallback}
+    >
+      {children}
+    </Auth0Provider>
+  );
 }
