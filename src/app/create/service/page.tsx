@@ -7,8 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { useAuth0 } from "@auth0/auth0-react";
-
+import { getAccessToken } from "@auth0/nextjs-auth0";
 
 type PrintDimension = {
   width: number;
@@ -361,44 +360,77 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-const { getAccessTokenSilently } = useAuth0();
 
-const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-  setLoading(true);
-  try {
-    const token = await getAccessTokenSilently();
-
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("price", data.price.toString());
-    formData.append("discount", data.discount.toString());
-    formData.append("category", data.category);
-    formData.append("hasFrontBack", data.hasFrontBack.toString());
-    formData.append("dimensions[width]", data.dimensions.width.toString());
-    formData.append("dimensions[height]", data.dimensions.height.toString());
-    formData.append("dimensions[unit]", data.dimensions.unit);
-    if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
-    formData.append("configurations", JSON.stringify(data.configurations));
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) throw new Error(await response.text());
-
-    router.push("/services");
-  } catch (err) {
-    console.error(err);
-    setError("response", { type: "manual", message: err instanceof Error ? err.message : "Creation failed" });
-  } finally {
-    setLoading(false);
-  }
-};
+  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    setLoading(true);
+    try {
+      // 1️⃣ Get access token from your App Router endpoint
+      const tokenRes = await fetch("/auth/access-token");
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        throw new Error(errText || "Failed to get access token");
+      }
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+  
+      // 2️⃣ Build FormData
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      formData.append("category", data.category);
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
+  
+      // ✅ Send dimensions as JSON string
+      formData.append("dimensions", JSON.stringify({
+        width: data.dimensions.width,
+        height: data.dimensions.height,
+        unit: data.dimensions.unit
+      }));
+  
+      // ✅ Validate and append image if present
+      if (data.image?.[0]) {
+        const file = data.image[0];
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+          throw new Error("Only JPG, JPEG, PNG and WEBP formats are allowed");
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error("Max file size is 15MB");
+        }
+        formData.append("thumbnail", file);
+      }
+  
+      // ✅ Send configurations as JSON string
+      formData.append("configurations", JSON.stringify(data.configurations));
+  
+      // 3️⃣ Send request to your backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Creation failed");
+      }
+  
+      router.push("/services");
+    } catch (error) {
+      console.error("[DEBUG] Submission error:", error);
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Creation failed",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
 
 
 
