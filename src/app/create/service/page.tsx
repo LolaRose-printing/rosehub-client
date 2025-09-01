@@ -241,6 +241,7 @@ const PRINT_TEMPLATES = [
 ];
 
 export default function CreateServicePage() {
+  
   const router = useRouter();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [configs, dispatch] = useReducer(configReducer, [{ title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] }]);
@@ -360,19 +361,20 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-
+  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // Get session using your Auth0 client
-      const session = await auth0.getSession();
-      
-      // Check if session and access token exist
-      if (!session || !session.accessToken) {
-        throw new Error("Authentication required. Please log in again.");
+      if (!isAuthenticated) {
+        await loginWithRedirect();
+        return;
       }
-  
-      const accessToken = session.accessToken;
+
+      const accessToken = await getAccessTokenSilently({
+        audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+        scope: "openid profile email"
+      });
+
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -385,7 +387,7 @@ export default function CreateServicePage() {
       formData.append("dimensions[unit]", data.dimensions.unit);
       if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
       formData.append("configurations", JSON.stringify(data.configurations));
-  
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: "POST",
         headers: {
@@ -393,12 +395,12 @@ export default function CreateServicePage() {
         },
         body: formData
       });
-  
+
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || "Creation failed");
       }
-  
+
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
@@ -407,7 +409,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-
 
 
   return (
