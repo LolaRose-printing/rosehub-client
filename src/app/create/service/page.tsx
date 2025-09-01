@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { auth0 } from '@/lib/auth0';
+import { getAccessToken } from "@auth0/nextjs-auth0";
 
 type PrintDimension = {
   width: number;
@@ -830,3 +830,6 @@ export default function CreateServicePage() {
     </div>
   );
 }
+
+
+
