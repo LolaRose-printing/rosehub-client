@@ -1,3 +1,5 @@
+"use client";
+
 import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect } from "react";
 import { useAuthStore } from "@/hooks/useAuthStore";
@@ -13,7 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user && getAccessTokenSilently) {
         try {
           const token = await getAccessTokenSilently();
-          setToken(token); // store token in Zustand or your state
+          setToken(token);
         } catch (err) {
           console.error("fetch token:", err);
         }
