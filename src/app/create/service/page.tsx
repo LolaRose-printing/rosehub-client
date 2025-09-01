@@ -360,14 +360,14 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
       // Get access token from Auth0
       const authResult = await getAccessToken();
-      if (!authResult.accessToken) {
-        throw new Error("No access token available");
+  
+      if (!authResult?.access_token) {
+        throw new Error("No access token available. Please log in again.");
       }
   
       // Build FormData
@@ -392,7 +392,7 @@ export default function CreateServicePage() {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${authResult.accessToken}`,
+            Authorization: `Bearer ${authResult.access_token}`,
           },
           body: formData,
         }
@@ -415,8 +415,6 @@ export default function CreateServicePage() {
     }
   };
   
-
-
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
