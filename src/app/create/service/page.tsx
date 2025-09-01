@@ -6,6 +6,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
+import { useAuthStore } from "@/hooks/useAuthStore";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 
 type PrintDimension = {
@@ -359,17 +360,17 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
+  const { user } = useAuthStore();
+
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
+  
     try {
-      // Get token from cookie
-      const token = getCookie("auth");
-      if (!token) {
+      if (!user?.accessToken) {
         throw new Error("No authentication token found. Please log in.");
       }
   
       const formData = new FormData();
-  
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("price", data.price.toString());
@@ -379,52 +380,27 @@ export default function CreateServicePage() {
       formData.append("dimensions[width]", data.dimensions.width.toString());
       formData.append("dimensions[height]", data.dimensions.height.toString());
       formData.append("dimensions[unit]", data.dimensions.unit);
+      if (data.image?.[0]) formData.append("thumbnail", data.image[0]);
+      formData.append("configurations", JSON.stringify(data.configurations));
   
-      if (data.image?.[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
-  
-      formData.append(
-        "configurations",
-        JSON.stringify(
-          data.configurations.map(cfg => ({
-            title: cfg.title,
-            items: cfg.items.map(item => ({
-              name: item.name,
-              additionalPrice: item.additionalPrice
-            }))
-          }))
-        )
-      );
-  
-      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
-  
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${user.accessToken}`,
         },
-        body: formData
+        body: formData,
       });
   
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("[DEBUG] Server rejected payload with:", text);
-        throw new Error(text || "Creation failed");
-      }
+      if (!response.ok) throw new Error(await response.text());
   
       router.push("/services");
-    } catch (error) {
-      console.error("[DEBUG] Submission error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed"
-      });
+    } catch (err) {
+      console.error(err);
+      setError("response", { type: "manual", message: err instanceof Error ? err.message : "Creation failed" });
     } finally {
       setLoading(false);
     }
   };
-  
 
 
 
