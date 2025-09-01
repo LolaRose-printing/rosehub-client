@@ -1,18 +1,17 @@
 // src/app/auth/access-token/route.ts
-import { NextResponse } from 'next/server';
-import { getServerSession } from '@auth0/nextjs-auth0/app-session';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAccessToken } from '@auth0/nextjs-auth0';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(req, {
-      audience: 'https://server.lolaprint.us/api',
-    });
+    // Use the Request object directly
+    const { accessToken } = await getAccessToken(req);
 
-    if (!session?.accessToken) {
+    if (!accessToken) {
       return NextResponse.json({ error: 'No access token available' }, { status: 401 });
     }
 
-    return NextResponse.json({ access_token: session.accessToken });
+    return NextResponse.json({ access_token: accessToken });
   } catch (error) {
     console.error('Access token error:', error);
     return NextResponse.json({ error: 'Failed to get access token' }, { status: 500 });
