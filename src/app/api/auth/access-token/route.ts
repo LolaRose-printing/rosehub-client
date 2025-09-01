@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies(); // no await needed
+    const cookieStore = await cookies(); // ✅ await here
     const tokenCookie = cookieStore.get('auth_access_token');
 
     if (!tokenCookie) {
