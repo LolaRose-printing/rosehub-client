@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { getAccessToken } from "@auth0/nextjs-auth0";
+import { auth0 } from '@/lib/auth0';
 
 type PrintDimension = {
   width: number;
@@ -364,11 +364,15 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      const { accessToken } = await getAccessToken({ 
-        // Make sure the audience matches your backend API
-        audience: "https://server.lolaprint.us/api"
-      });
+      // Get session using your Auth0 client
+      const session = await auth0.getSession();
+      
+      // Check if session and access token exist
+      if (!session || !session.accessToken) {
+        throw new Error("Authentication required. Please log in again.");
+      }
   
+      const accessToken = session.accessToken;
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -403,7 +407,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-
 
 
 
