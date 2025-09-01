@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { useAuth0 } from "@auth0/auth0-react";
+import { getAccessToken } from "@auth0/nextjs-auth0";
+import { useAuth0 } from "@auth0/auth0-react"; // or client version
 
 
 type PrintDimension = {
@@ -242,7 +243,6 @@ const PRINT_TEMPLATES = [
 ];
 
 export default function CreateServicePage() {
-  
   const router = useRouter();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [configs, dispatch] = useReducer(configReducer, [{ title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] }]);
@@ -362,17 +362,15 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
+
+  const { getAccessTokenSilently } = useAuth0(); // modern hook
+
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      if (!isAuthenticated) {
-        await loginWithRedirect();
-        return;
-      }
-
+      // Get a valid access token for your backend
       const accessToken = await getAccessTokenSilently({
-        audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+        audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE, // e.g., "https://server.lolaprint.us/api"
         scope: "openid profile email"
       });
 
@@ -410,6 +408,7 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
+
 
 
   return (
@@ -832,6 +831,3 @@ export default function CreateServicePage() {
     </div>
   );
 }
-
-
-
