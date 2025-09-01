@@ -362,27 +362,28 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
+      // Get token from cookie
+      const token = getCookie("auth");
+      if (!token) {
+        throw new Error("No authentication token found. Please log in.");
+      }
+  
       const formData = new FormData();
-
-      // Core fields
+  
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("price", data.price.toString());
       formData.append("discount", data.discount.toString());
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-
-      // 📐 Dimensions as separate fields
       formData.append("dimensions[width]", data.dimensions.width.toString());
       formData.append("dimensions[height]", data.dimensions.height.toString());
       formData.append("dimensions[unit]", data.dimensions.unit);
-
-      // 🖼️ File upload
+  
       if (data.image?.[0]) {
         formData.append("thumbnail", data.image[0]);
       }
-
-      // ⚙️ Configurations as JSON string
+  
       formData.append(
         "configurations",
         JSON.stringify(
@@ -395,22 +396,23 @@ export default function CreateServicePage() {
           }))
         )
       );
-
-      // 🔗 Determine and log endpoint
+  
       const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
-
+  
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getCookie("auth")}` },
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
         body: formData
       });
-
+  
       if (!response.ok) {
         const text = await response.text();
         console.error("[DEBUG] Server rejected payload with:", text);
         throw new Error(text || "Creation failed");
       }
-
+  
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
@@ -422,7 +424,7 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-
+  
 
 
 
