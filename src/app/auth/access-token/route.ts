@@ -1,26 +1,20 @@
-import { getAccessToken } from '@auth0/nextjs-auth0';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getSession } from '@auth0/nextjs-auth0';
+import { cookies, headers } from 'next/headers';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    // Create a new request with the full URL
-    const url = new URL(req.url);
-    const fullUrl = `${url.origin}/auth/access-token`;
-    const newReq = new Request(fullUrl, {
-      headers: req.headers,
-      method: 'GET',
-    });
-
-    const { accessToken } = await getAccessToken(newReq);
-
-    if (!accessToken) {
+    // Get the session using the cookies and headers
+    const session = await getSession();
+    
+    if (!session || !session.accessToken) {
       return NextResponse.json(
         { error: 'No access token available' },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({ access_token: accessToken });
+    return NextResponse.json({ access_token: session.accessToken });
   } catch (error) {
     console.error('Access token error:', error);
     return NextResponse.json(
