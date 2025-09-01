@@ -364,16 +364,16 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get access token from your App Router endpoint
-      const tokenRes = await fetch("/auth/access-token");
-      if (!tokenRes.ok) {
-        const errText = await tokenRes.text();
-        throw new Error(errText || "Failed to get access token");
-      }
-      const tokenData = await tokenRes.json();
-      const accessToken = tokenData.access_token;
+      // 1️⃣ Get Auth0 access token for your API
+      const { accessToken } = await getAccessToken({
+        scopes: [], // Optional: add API scopes if needed
+      });
   
-      // 2️⃣ Build FormData
+      if (!accessToken) {
+        throw new Error("Failed to get access token");
+      }
+  
+      // 2️⃣ Build FormData for submission
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -382,14 +382,17 @@ export default function CreateServicePage() {
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
-      // ✅ Send dimensions as JSON string
-      formData.append("dimensions", JSON.stringify({
-        width: data.dimensions.width,
-        height: data.dimensions.height,
-        unit: data.dimensions.unit
-      }));
+      // Send dimensions as JSON string
+      formData.append(
+        "dimensions",
+        JSON.stringify({
+          width: data.dimensions.width,
+          height: data.dimensions.height,
+          unit: data.dimensions.unit,
+        })
+      );
   
-      // ✅ Validate and append image if present
+      // Validate and append image if present
       if (data.image?.[0]) {
         const file = data.image[0];
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -401,23 +404,27 @@ export default function CreateServicePage() {
         formData.append("thumbnail", file);
       }
   
-      // ✅ Send configurations as JSON string
+      // Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
-      // 3️⃣ Send request to your backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-      });
+      // 3️⃣ Send request to your backend with proper Authorization
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        }
+      );
   
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || "Creation failed");
       }
   
+      // ✅ Success: redirect to services page
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
