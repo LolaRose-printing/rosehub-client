@@ -1,36 +1,35 @@
-"use client";
-import { useAuth } from "@/hooks/useAuth";
-import { useAuthStore } from "@/hooks/useAuthStore";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect } from "react";
+import { useAuthStore } from "@/hooks/useAuthStore";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, error, isLoading, getAccessTokenSilently } = useAuth();
-  const { setUser, setLoading } = useAuthStore();
+  const { user, isLoading, getAccessTokenSilently } = useAuth0();
+  const { setUser, setLoading, setToken } = useAuthStore();
 
   useEffect(() => {
     setLoading(isLoading);
 
-    const fetchToken = async () => {
-      if (user) {
+    async function fetchToken() {
+      if (user && getAccessTokenSilently) {
         try {
-          // Get Auth0 access token
           const token = await getAccessTokenSilently();
-          const roles = user["https://rosehub.com/roles"] || [];
-          // Store user + access token
-          setUser({ ...user, accessToken: token }, roles);
+          setToken(token); // store token in Zustand or your state
         } catch (err) {
-          console.error("Failed to fetch token:", err);
-          setUser(null, []);
+          console.error("fetch token:", err);
         }
-      } else if (!isLoading) {
-        setUser(null, []);
       }
-    };
+    }
 
     fetchToken();
-  }, [user, isLoading, getAccessTokenSilently, setUser, setLoading]);
 
-  if (error) console.error("Auth error:", error);
+    if (user) {
+      const roles = user["https://rosehub.com/roles"] || [];
+      setUser(user, roles);
+    } else if (!isLoading) {
+      setUser(null, []);
+      setToken(null);
+    }
+  }, [user, isLoading, getAccessTokenSilently, setUser, setLoading, setToken]);
 
   return <>{children}</>;
 }
