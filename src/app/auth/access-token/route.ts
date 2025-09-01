@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
-    // Convert the incoming Request to a full URL
-    const url = new URL(req.url); // This fixes the Invalid URL error
+    // Use APP_BASE_URL from environment as the base for relative URLs
+    const baseUrl = process.env.APP_BASE_URL!;
+    const url = new URL(req.url, baseUrl);
 
     const { accessToken } = await getAccessToken({
       req,
-      // v4 expects req + url (for cookies, headers, etc.)
-      url: url.toString(),
+      url: url.toString(), // absolute URL required by v4
     });
 
     if (!accessToken) {
