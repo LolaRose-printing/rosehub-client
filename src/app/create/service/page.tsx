@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { getAccessToken } from "@auth0/nextjs-auth0";
 
 type PrintDimension = {
   width: number;
@@ -360,81 +359,70 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get Auth0 access token for your API (client-side)
-      const accessToken = await getAccessToken(); // just call, no destructure
-  
-      if (!accessToken) {
-        throw new Error("Failed to get access token");
-      }
-  
-      // 2️⃣ Build FormData for submission
       const formData = new FormData();
+
+      // Core fields
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("price", data.price.toString());
       formData.append("discount", data.discount.toString());
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-  
-      // Send dimensions as JSON string
-      formData.append(
-        "dimensions",
-        JSON.stringify({
-          width: data.dimensions.width,
-          height: data.dimensions.height,
-          unit: data.dimensions.unit,
-        })
-      );
-  
-      // Validate and append image if present
+
+      // 📐 Dimensions as separate fields
+      formData.append("dimensions[width]", data.dimensions.width.toString());
+      formData.append("dimensions[height]", data.dimensions.height.toString());
+      formData.append("dimensions[unit]", data.dimensions.unit);
+
+      // 🖼️ File upload
       if (data.image?.[0]) {
-        const file = data.image[0];
-        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-          throw new Error("Only JPG, JPEG, PNG and WEBP formats are allowed");
-        }
-        if (file.size > MAX_FILE_SIZE) {
-          throw new Error("Max file size is 15MB");
-        }
-        formData.append("thumbnail", file);
+        formData.append("thumbnail", data.image[0]);
       }
-  
-      // Send configurations as JSON string
-      formData.append("configurations", JSON.stringify(data.configurations));
-  
-      // 3️⃣ Send request to your backend with proper Authorization
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData,
-        }
+
+      // ⚙️ Configurations as JSON string
+      formData.append(
+        "configurations",
+        JSON.stringify(
+          data.configurations.map(cfg => ({
+            title: cfg.title,
+            items: cfg.items.map(item => ({
+              name: item.name,
+              additionalPrice: item.additionalPrice
+            }))
+          }))
+        )
       );
-  
+
+      // 🔗 Determine and log endpoint
+      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCookie("auth")}` },
+        body: formData
+      });
+
       if (!response.ok) {
         const text = await response.text();
+        console.error("[DEBUG] Server rejected payload with:", text);
         throw new Error(text || "Creation failed");
       }
-  
-      // ✅ Success: redirect to services page
+
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed",
+        message: error instanceof Error ? error.message : "Creation failed"
       });
     } finally {
       setLoading(false);
     }
   };
-  
+
 
 
 
