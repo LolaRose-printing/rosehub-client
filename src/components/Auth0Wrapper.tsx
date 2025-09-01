@@ -1,4 +1,5 @@
 "use client";
+
 import { Auth0Provider } from "@auth0/auth0-react";
 
 export default function Auth0Wrapper({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,7 @@ export default function Auth0Wrapper({ children }: { children: React.ReactNode }
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: typeof window !== "undefined" ? window.location.origin : undefined,
+        redirect_uri: typeof window !== "undefined" ? window.location.origin : "",
         audience,
       }}
     >
