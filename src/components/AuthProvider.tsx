@@ -15,7 +15,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       const roles = user["https://rosehub.com/roles"] || [];
       setUser(user, roles);
     } else if (!isLoading) {
-      // If not logged in, trigger Auth0 login
       loginWithRedirect().catch(err => console.error("Login redirect failed:", err));
       setUser(null, []);
     }
