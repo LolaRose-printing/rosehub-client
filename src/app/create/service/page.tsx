@@ -364,10 +364,8 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get Auth0 access token for your API
-      const { accessToken } = await getAccessToken({
-        scopes: [], // Optional: add API scopes if needed
-      });
+      // 1️⃣ Get Auth0 access token for your API (client-side)
+      const accessToken = await getAccessToken(); // just call, no destructure
   
       if (!accessToken) {
         throw new Error("Failed to get access token");
@@ -436,7 +434,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-  
   
 
 
