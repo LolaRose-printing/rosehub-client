@@ -4,18 +4,18 @@ import { NextPage } from "next";
 import { Header } from "@/components/Header";
 import { ServicesList } from "@/components/ServicesList";
 import { CreateServiceForm } from "@/components/CreateServiceForm";
-import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
+import { useAuth0 } from "@auth0/auth0-react";
+import { useEffect } from "react";
 
 const Page: NextPage = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, loginWithRedirect } = useAuth0();
 
-  // Redirect to auth if not authenticated
+  // Redirect to Auth0 login if not authenticated
   useEffect(() => {
     if (!isLoading && !user) {
-      window.location.href = '/auth';
+      loginWithRedirect();
     }
-  }, [user, isLoading]);
+  }, [isLoading, user, loginWithRedirect]);
 
   if (isLoading) {
     return (
@@ -29,7 +29,7 @@ const Page: NextPage = () => {
   }
 
   if (!user) {
-    return null; // Will redirect via useEffect
+    return null; // Waiting for login redirect
   }
 
   return (
@@ -52,6 +52,6 @@ const Page: NextPage = () => {
       </div>
     </main>
   );
-}
+};
 
 export default Page;
