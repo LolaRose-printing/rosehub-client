@@ -360,7 +360,6 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
@@ -373,6 +372,10 @@ export default function CreateServicePage() {
       const tokenData = await tokenRes.json();
       const accessToken = tokenData.access_token;
   
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
+  
       // 2️⃣ Build FormData
       const formData = new FormData();
       formData.append("title", data.title);
@@ -383,11 +386,14 @@ export default function CreateServicePage() {
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
       // ✅ Send dimensions as JSON string
-      formData.append("dimensions", JSON.stringify({
-        width: data.dimensions.width,
-        height: data.dimensions.height,
-        unit: data.dimensions.unit
-      }));
+      formData.append(
+        "dimensions",
+        JSON.stringify({
+          width: data.dimensions.width,
+          height: data.dimensions.height,
+          unit: data.dimensions.unit,
+        })
+      );
   
       // ✅ Validate and append image if present
       if (data.image?.[0]) {
@@ -405,25 +411,36 @@ export default function CreateServicePage() {
       formData.append("configurations", JSON.stringify(data.configurations));
   
       // 3️⃣ Send request to your backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`, // Bearer token header
+          },
+          body: formData,
+        }
+      );
   
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(text || "Creation failed");
+        // Optional: parse JSON if backend returns structured error
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.message || "Creation failed");
+        } catch {
+          throw new Error(text || "Creation failed");
+        }
       }
   
+      // ✅ Success: redirect to services page
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed",
+        message:
+          error instanceof Error ? error.message : "Creation failed",
       });
     } finally {
       setLoading(false);
