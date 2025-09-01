@@ -363,11 +363,17 @@ export default function CreateServicePage() {
  
 const { getAccessTokenSilently } = useAuth0();
 
+const { getAccessTokenSilently } = useAuth0();
+
 const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
   setLoading(true);
+
   try {
-    // 1️⃣ Get a valid access token from Auth0
-    const accessToken = await getAccessTokenSilently();
+    // 1️⃣ Get a valid access token from Auth0 using environment variables
+    const accessToken = await getAccessTokenSilently({
+      audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api",
+      scope: "openid profile email offline_access", // offline_access allows refresh tokens
+    });
 
     // 2️⃣ Build FormData
     const formData = new FormData();
@@ -377,6 +383,7 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     formData.append("discount", data.discount.toString());
     formData.append("category", data.category);
     formData.append("hasFrontBack", data.hasFrontBack.toString());
+
     formData.append(
       "dimensions",
       JSON.stringify({
@@ -386,20 +393,19 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
       })
     );
 
+    // Validate and append image
     if (data.image?.[0]) {
       const file = data.image[0];
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        throw new Error("Only JPG, JPEG, PNG and WEBP formats are allowed");
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        throw new Error("Max file size is 15MB");
-      }
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type))
+        throw new Error("Only JPG, JPEG, PNG, and WEBP formats are allowed");
+      if (file.size > MAX_FILE_SIZE) throw new Error("Max file size is 15MB");
       formData.append("thumbnail", file);
     }
 
+    // Append configurations
     formData.append("configurations", JSON.stringify(data.configurations));
 
-    // 3️⃣ Send request to your backend with Auth0 token
+    // 3️⃣ Send request to backend
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
       method: "POST",
       headers: {
@@ -424,8 +430,6 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(false);
   }
 };
-  
-  
 
 
 
