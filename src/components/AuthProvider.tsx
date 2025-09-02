@@ -1,3 +1,4 @@
+// components/AuthProvider.tsx
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -15,8 +16,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roles = user["https://rosehub.com/roles"] || [];
       setUser(user, roles);
 
-      // Clear token for now; you can later set it if using Auth0 or similar
-      setToken(null);
+      // Extract token from user or fetch it
+      const accessToken = user.accessToken || getTokenFromStorage();
+      setToken(accessToken);
     } else if (!isLoading) {
       setUser(null, []);
       setToken(null);
@@ -26,4 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (error) console.error("Auth error:", error);
 
   return <>{children}</>;
+}
+
+// Helper function to get token from storage
+function getTokenFromStorage() {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('auth_token') || null;
+  }
+  return null;
 }
