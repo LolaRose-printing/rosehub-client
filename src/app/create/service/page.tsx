@@ -363,12 +363,20 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get access token using Auth0 helper
-      const { getAccessToken } = await import('@auth0/nextjs-auth0');
-      const { accessToken } = await getAccessToken();
+      // 1️⃣ Get access token with proper error handling
+      let accessToken: string | undefined;
       
+      try {
+        const { getAccessToken } = await import('@auth0/nextjs-auth0');
+        const tokenResult = await getAccessToken();
+        accessToken = tokenResult?.accessToken;
+      } catch (tokenError) {
+        console.error("Token fetch error:", tokenError);
+        throw new Error("Failed to get authentication token. Please try logging in again.");
+      }
+  
       if (!accessToken) {
-        throw new Error("No access token available");
+        throw new Error("No access token available. Please ensure you're logged in.");
       }
   
       // 2️⃣ Build FormData
