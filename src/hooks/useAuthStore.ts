@@ -1,4 +1,4 @@
-import { create  } from "zustand";
+import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { deleteCookie, getCookie } from "cookies-next";
 
@@ -10,17 +10,18 @@ type AuthState = {
   user: any | null;
   roles: string[];
   isLoading: boolean;
-}
+};
 
 type AuthActions = {
   setEmail: (email: string) => void;
   setAuth: (email: string, accessToken: string, expiration: number) => void;
+  setToken: (token: string | null) => void; // <-- added
   setUser: (user: any, roles?: string[]) => void;
   setLoading: (isLoading: boolean) => void;
   logout: () => void;
   checkAuth: () => boolean;
   initializeAuth: () => void;
-}
+};
 
 type AuthStore = AuthState & AuthActions;
 
@@ -39,33 +40,34 @@ export const useAuthStore = create(
     (set, get) => ({
       ...defaultInitState,
       setEmail: (email: string) => set({ email }),
-      setAuth: (email: string, accessToken: string, expiration: number) => 
-        set({ 
-          email, 
-          accessToken, 
-          expiration, 
-          isAuthenticated: true 
+      setAuth: (email: string, accessToken: string, expiration: number) =>
+        set({
+          email,
+          accessToken,
+          expiration,
+          isAuthenticated: true,
         }),
-      setUser: (user: any, roles: string[] = []) => 
-        set({ 
+      setToken: (token: string | null) => set({ accessToken: token }), // <-- added
+      setUser: (user: any, roles: string[] = []) =>
+        set({
           user,
           roles,
           email: user?.email || "",
-          isAuthenticated: !!user 
+          isAuthenticated: !!user,
         }),
       setLoading: (isLoading: boolean) => set({ isLoading }),
       logout: () => {
         deleteCookie("auth");
         deleteCookie("expiration");
         localStorage.removeItem("client_login_status");
-        set({ 
-          email: "", 
-          expiration: 0, 
-          isAuthenticated: false, 
+        set({
+          email: "",
+          expiration: 0,
+          isAuthenticated: false,
           accessToken: null,
           user: null,
           roles: [],
-          isLoading: false
+          isLoading: false,
         });
         window.location.href = "/auth";
       },
@@ -73,12 +75,12 @@ export const useAuthStore = create(
         const token = getCookie("auth");
         const expiration = getCookie("expiration");
         const now = Date.now();
-        
+
         if (!token || !expiration || now >= +expiration) {
           set({ isAuthenticated: false, accessToken: null });
           return false;
         }
-        
+
         set({ isAuthenticated: true, accessToken: token as string });
         return true;
       },
@@ -86,18 +88,18 @@ export const useAuthStore = create(
         const token = getCookie("auth");
         const expiration = getCookie("expiration");
         const now = Date.now();
-        
+
         if (token && expiration && now < +expiration) {
-          set({ 
-            isAuthenticated: true, 
+          set({
+            isAuthenticated: true,
             accessToken: token as string,
-            expiration: +expiration
+            expiration: +expiration,
           });
         } else {
-          set({ 
-            isAuthenticated: false, 
+          set({
+            isAuthenticated: false,
             accessToken: null,
-            expiration: 0
+            expiration: 0,
           });
         }
       },

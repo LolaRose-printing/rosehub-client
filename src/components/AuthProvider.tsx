@@ -15,7 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roles = user["https://rosehub.com/roles"] || [];
       setUser(user, roles);
 
-      // If you have no token from Auth0, just clear it
+      // Clear token for now; you can later set it if using Auth0 or similar
       setToken(null);
     } else if (!isLoading) {
       setUser(null, []);
