@@ -1,13 +1,15 @@
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
     const domain = process.env.AUTH0_ISSUER_BASE_URL;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const baseUrl = process.env.APP_BASE_URL; // 🔥 FIXED here
+    // Use the production URL directly to avoid any environment variable issues
+    const baseUrl = "https://client.lolaprint.us"; // 🔥 HARDCODE this instead of using APP_BASE_URL
     const audience = process.env.AUTH0_AUDIENCE;
 
-    if (!domain || !clientId || !baseUrl) {
+    if (!domain || !clientId) {
       throw new Error('Auth0 configuration missing');
     }
 
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
       new URLSearchParams({
         response_type: 'code',
         client_id: clientId,
-        redirect_uri: `${baseUrl}/api/auth/callback`,
+        redirect_uri: `${baseUrl}/api/auth/callback`, // This should match EXACTLY what's in Auth0 dashboard
         scope: process.env.AUTH0_SCOPE || 'openid profile email',
         audience: audience || '',
         state,
