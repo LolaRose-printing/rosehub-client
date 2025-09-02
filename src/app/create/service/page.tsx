@@ -9,6 +9,7 @@ import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 import { useAuthStore } from "@/hooks/useAuthStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuth0 } from "@auth0/auth0-react";
 
 type PrintDimension = {
   width: number;
@@ -361,77 +362,105 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-  const { user, isLoading: authLoading } = useAuth();
-  const { token } = useAuthStore();
-  
-  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-    setLoading(true);
-  
-    try {
-      // Wait until auth finishes loading
-      if (authLoading) {
-        console.warn("[Auth] Auth still loading...");
-        return;
-      }
-  
-      // Force login only if user is definitely not authenticated
-      if (!user) {
-        console.warn("[Auth] User not authenticated. Redirecting to login...");
-        // Redirect to your custom auth login endpoint
-        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(router.asPath)}`;
-        return;
-      }
-  
-      // Use the token from your auth store
-      const accessToken = token;
-  
-      if (!accessToken) {
-        throw new Error("No access token available. Please log in again.");
-      }
-  
-      // Create FormData for the service creation
-      const formData = new FormData();
-      formData.append('title', data.title);
-      formData.append('description', data.description);
-      formData.append('price', data.price.toString());
-      formData.append('discount', data.discount.toString());
-      formData.append('dimensions', JSON.stringify(data.dimensions));
-      formData.append('hasFrontBack', data.hasFrontBack.toString());
-      formData.append('configurations', JSON.stringify(data.configurations));
-      formData.append('category', data.category);
-      
-      if (data.image?.[0]) {
-        formData.append('image', data.image[0]);
-      }
-  
-      // Make the API request to create the service
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: formData,
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create service');
-      }
-  
-      const result = await response.json();
-      router.push('/services');
-      
-    } catch (error) {
-      console.error("[DEBUG] Submission error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+// Inside your component, replace the auth hooks:
+const { getAccessTokenSilently, isAuthenticated, isLoading: auth0Loading } = useAuth0();
+const { token } = useAuthStore();
 
+const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+  setLoading(true);
+
+  try {
+    // Wait until Auth0 finishes loading
+    if (auth0Loading) {
+      console.warn("[Auth] Auth0 still loading...");
+      return;
+    }
+
+    // Force login only if user is definitely not authenticated
+    if (!isAuthenticated) {
+      console.warn("[Auth] User not authenticated. Redirecting to login...");
+      // Use Auth0's redirect method instead of window.location
+      loginWithRedirect({ 
+        appState: { returnTo: router.asPath },
+        authorizationParams: {
+          audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+          scope: "openid profile email"
+        }
+      });
+      return;
+    }
+
+    // Try to get token from store first, then from Auth0 if missing
+    let accessToken = token;
+    if (!accessToken) {
+      try {
+        console.warn("[Auth] Token missing from store, fetching from Auth0...");
+        accessToken = await getAccessTokenSilently({
+          audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+          scope: "openid profile email",
+        });
+        // Update the store with the new token
+        useAuthStore.getState().setToken(accessToken);
+      } catch (err) {
+        console.error("[Auth] Failed to get token:", err);
+        // Redirect to login if token acquisition fails
+        loginWithRedirect({ 
+          appState: { returnTo: router.asPath },
+          authorizationParams: {
+            audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+            scope: "openid profile email"
+          }
+        });
+        return;
+      }
+    }
+
+    if (!accessToken) {
+      throw new Error("No access token available. Please log in again.");
+    }
+
+    // Create FormData for the service creation
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('price', data.price.toString());
+    formData.append('discount', data.discount.toString());
+    formData.append('dimensions', JSON.stringify(data.dimensions));
+    formData.append('hasFrontBack', data.hasFrontBack.toString());
+    formData.append('configurations', JSON.stringify(data.configurations));
+    formData.append('category', data.category);
+    
+    if (data.image?.[0]) {
+      formData.append('image', data.image[0]);
+    }
+
+    // Make the API request to create the service
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create service');
+    }
+
+    const result = await response.json();
+    router.push('/services');
+    
+  } catch (error) {
+    console.error("[DEBUG] Submission error:", error);
+    setError("response", {
+      type: "manual",
+      message: error instanceof Error ? error.message : "Creation failed",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
