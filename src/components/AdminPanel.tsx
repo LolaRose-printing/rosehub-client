@@ -4,6 +4,15 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { checkAdminAccess } from '@/lib/client-fetcher';
 
+// Extend the User type to include custom properties
+interface ExtendedUser {
+  email?: string;
+  name?: string;
+  roles?: string[];
+  ['https://rosehub.com/roles']?: string[];
+  [key: string]: any;
+}
+
 export function AdminPanel() {
   const { user } = useAuth();
   const [adminStatus, setAdminStatus] = useState<string>('');
@@ -15,7 +24,12 @@ export function AdminPanel() {
       const result = await checkAdminAccess();
       setAdminStatus(`Admin access granted: ${result.message}`);
     } catch (error) {
-      setAdminStatus(`Admin access denied: ${error.message}`);
+      // Proper error handling for TypeScript
+      if (error instanceof Error) {
+        setAdminStatus(`Admin access denied: ${error.message}`);
+      } else {
+        setAdminStatus(`Admin access denied: ${String(error)}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -23,7 +37,9 @@ export function AdminPanel() {
 
   if (!user) return null;
 
-  const userRoles = user?.['https://rosehub.com/roles'] || user?.roles || [];
+  // Type assertion to handle the custom property
+  const extendedUser = user as ExtendedUser;
+  const userRoles = extendedUser?.['https://rosehub.com/roles'] || extendedUser?.roles || [];
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
@@ -31,8 +47,8 @@ export function AdminPanel() {
       
       <div className="mb-4">
         <h3 className="font-semibold">User Information:</h3>
-        <p>Email: {user?.email}</p>
-        <p>Name: {user?.name}</p>
+        <p>Email: {extendedUser?.email}</p>
+        <p>Name: {extendedUser?.name}</p>
         <p>Roles: {userRoles.length > 0 ? userRoles.join(', ') : 'No roles assigned'}</p>
       </div>
 

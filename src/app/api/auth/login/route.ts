@@ -2,33 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const domain = process.env.AUTH0_DOMAIN;
+    // Use the correct environment variable names from your .env.local
+    const domain = process.env.AUTH0_ISSUER_BASE_URL; // Changed from AUTH0_DOMAIN
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const redirectUri = process.env.AUTH0_REDIRECT_URI;
-    const audience = process.env.AUTH0_AUDIENCE;
-    const scope = process.env.AUTH0_SCOPE;
-
-    if (!domain || !clientId || !redirectUri || !audience) {
+    const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3001'; // Use AUTH0_BASE_URL
+    
+    if (!domain || !clientId) {
       throw new Error('Auth0 configuration missing');
     }
-
+    
+    // Generate state and nonce for security
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
-
-    const loginUrl = `https://${domain}/authorize?` + new URLSearchParams({
+    
+    // Extract the domain part from the issuer URL (remove https://)
+    const auth0Domain = domain.replace('https://', '');
+    
+    const loginUrl = `https://${auth0Domain}/authorize?` + new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
-      redirect_uri: redirectUri,
-      scope,
-      audience,
-      state,
-      nonce
+      redirect_uri: `${baseUrl}/api/auth/callback`,
+      scope: 'openid profile email',
+      audience: process.env.AUTH0_AUDIENCE || 'https://server.lolaprint.us', // Use your actual audience
+      state: state,
+      nonce: nonce
     }).toString();
-
+    
     return NextResponse.redirect(loginUrl);
   } catch (error) {
     console.error('Login error:', error);
-    return Response.json({ error: 'Login failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
 }
 
