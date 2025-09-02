@@ -360,18 +360,16 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get access token from your App Router endpoint
-      const tokenRes = await fetch("/auth/access-token");
-      if (!tokenRes.ok) {
-        const errText = await tokenRes.text();
-        throw new Error(errText || "Failed to get access token");
+      // 1️⃣ Get access token using Auth0 helper
+      const { getAccessToken } = await import('@auth0/nextjs-auth0');
+      const { accessToken } = await getAccessToken();
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
       }
-      const tokenData = await tokenRes.json();
-      const accessToken = tokenData.access_token;
   
       // 2️⃣ Build FormData
       const formData = new FormData();
@@ -382,14 +380,14 @@ export default function CreateServicePage() {
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
-      // ✅ Send dimensions as JSON string
+      // Send dimensions as JSON string
       formData.append("dimensions", JSON.stringify({
         width: data.dimensions.width,
         height: data.dimensions.height,
         unit: data.dimensions.unit
       }));
   
-      // ✅ Validate and append image if present
+      // Validate and append image if present
       if (data.image?.[0]) {
         const file = data.image[0];
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -401,7 +399,7 @@ export default function CreateServicePage() {
         formData.append("thumbnail", file);
       }
   
-      // ✅ Send configurations as JSON string
+      // Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
       // 3️⃣ Send request to your backend
@@ -414,8 +412,8 @@ export default function CreateServicePage() {
       });
   
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Creation failed");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
   
       router.push("/services");
