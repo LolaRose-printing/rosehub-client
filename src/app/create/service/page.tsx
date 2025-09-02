@@ -362,8 +362,8 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-// Inside your component, replace the auth hooks:
-const { getAccessTokenSilently, isAuthenticated, isLoading: auth0Loading } = useAuth0();
+// Update the useAuth0 destructuring to include loginWithRedirect
+const { getAccessTokenSilently, isAuthenticated, isLoading: auth0Loading, loginWithRedirect } = useAuth0();
 const { token } = useAuthStore();
 
 const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
