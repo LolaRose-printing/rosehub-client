@@ -1,16 +1,17 @@
-// app/api/auth/login/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const domain = process.env.AUTH0_ISSUER_BASE_URL;
-    const clientId = process.env.AUTH0_CLIENT_ID;
-    // Use the production URL directly to avoid any environment variable issues
-    const baseUrl = "https://client.lolaprint.us"; // 🔥 HARDCODE this instead of using APP_BASE_URL
-    const audience = process.env.AUTH0_AUDIENCE;
+    const domain = process.env.AUTH0_ISSUER_BASE_URL!;
+    const clientId = process.env.AUTH0_CLIENT_ID!;
+    const audience = process.env.AUTH0_AUDIENCE!;
+    const redirectUri = process.env.NEXT_PUBLIC_BASE_URL
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/callback`
+      : "https://client.lolaprint.us/api/auth/callback";
+    const scope = process.env.AUTH0_SCOPE || "openid profile email offline_access";
 
-    if (!domain || !clientId) {
-      throw new Error('Auth0 configuration missing');
+    if (!domain || !clientId || !audience) {
+      throw new Error("Auth0 configuration missing");
     }
 
     // Generate state and nonce for security
@@ -20,26 +21,24 @@ export async function GET(request: NextRequest) {
     const loginUrl =
       `${domain}/authorize?` +
       new URLSearchParams({
-        response_type: 'code',
+        response_type: "code",
         client_id: clientId,
-        redirect_uri: `${baseUrl}/api/auth/callback`, // This should match EXACTLY what's in Auth0 dashboard
-        scope: process.env.AUTH0_SCOPE || 'openid profile email',
-        audience: audience || '',
+        redirect_uri: redirectUri,
+        scope,
+        audience,
         state,
         nonce,
       }).toString();
 
     return NextResponse.redirect(loginUrl);
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    console.error("Login error:", error);
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }
 
 function generateRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('');
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
