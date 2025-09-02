@@ -4,26 +4,27 @@ export async function GET(request: NextRequest) {
   try {
     const domain = process.env.AUTH0_DOMAIN;
     const clientId = process.env.AUTH0_CLIENT_ID;
-    const baseUrl = process.env.APP_BASE_URL;
-    
-    if (!domain || !clientId) {
+    const redirectUri = process.env.AUTH0_REDIRECT_URI;
+    const audience = process.env.AUTH0_AUDIENCE;
+    const scope = process.env.AUTH0_SCOPE;
+
+    if (!domain || !clientId || !redirectUri || !audience) {
       throw new Error('Auth0 configuration missing');
     }
-    
-    // Generate state and nonce for security
+
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
-    
+
     const loginUrl = `https://${domain}/authorize?` + new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
-      redirect_uri: `${baseUrl}/api/auth/callback`,
-      scope: 'openid profile email',
-      audience: process.env.AUTH0_AUDIENCE,
-      state: state,
-      nonce: nonce
+      redirect_uri: redirectUri,
+      scope,
+      audience,
+      state,
+      nonce
     }).toString();
-    
+
     return NextResponse.redirect(loginUrl);
   } catch (error) {
     console.error('Login error:', error);
