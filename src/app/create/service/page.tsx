@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
 import { getAccessToken } from "@auth0/nextjs-auth0";
+import { useAuth0 } from "@auth0/auth0-react";
 
 type PrintDimension = {
   width: number;
@@ -359,6 +360,8 @@ export default function CreateServicePage() {
 
     trigger(); // validate new form state
   };
+
+  const { getAccessTokenSilently, isAuthenticated } = useAuth0();
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
