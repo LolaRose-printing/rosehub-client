@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import AuthProvider from "@/components/AuthProvider";
-
 import "./globals.css";
+import Auth0Wrapper from "@/components/Auth0Wrapper";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,29 +15,17 @@ export const metadata: Metadata = {
   description: "RoseHub app",
 };
 
-interface RootLayoutProps {
-  children: React.ReactNode;
-  modal: React.ReactNode; // Remove the optional modifier (?)
-}
-
-export default function RootLayout({ children, modal }: RootLayoutProps) {
-  const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN!;
-  const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
-  const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || "https://server.lolaprint.us/api";
-
+export default function RootLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <AuthProvider
-          domain={domain}
-          clientId={clientId}
-          audience={audience}
-          redirectUri={typeof window !== "undefined" ? window.location.origin : undefined}
-        >
-          {modal}
-          <div id="modal-root" />
-          {children}
-        </AuthProvider>
+        <Auth0Wrapper>
+          <AuthProvider>
+            {modal}
+            <div id="modal-root" />
+            {children}
+          </AuthProvider>
+        </Auth0Wrapper>
       </body>
     </html>
   );
