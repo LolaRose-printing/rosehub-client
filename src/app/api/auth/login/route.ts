@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       client_id: clientId,
       redirect_uri: `${baseUrl}/api/auth/callback`,
       scope: 'openid profile email',
-      audience: 'rosehub-api',
+      audience: process.env.AUTH0_AUDIENCE,
       state: state,
       nonce: nonce
     }).toString();
