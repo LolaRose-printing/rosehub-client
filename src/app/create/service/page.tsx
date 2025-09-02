@@ -361,32 +361,42 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-  const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
+  
     try {
-      // 1️⃣ Get access token using useAuth0
+      // 1️⃣ Ensure the user is authenticated
+      if (!isAuthenticated) {
+        console.warn("[Auth] User not authenticated. Redirecting to login...");
+        await loginWithRedirect({
+          appState: { returnTo: router.asPath },
+        });
+        return;
+      }
+  
+      // 2️⃣ Retrieve the access token silently
       let accessToken: string;
       try {
-        if (!isAuthenticated) {
-          throw new Error("You must be logged in to submit a service.");
-        }
-  
         accessToken = await getAccessTokenSilently({
           audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
-          scope: "openid profile email"
+          scope: "openid profile email",
         });
       } catch (err) {
-        console.error("Auth0 token error:", err);
-        throw new Error("Failed to get authentication token. Please log in again.");
+        console.error("[Auth] Failed to get token silently:", err);
+        // Optionally force a login redirect if silent retrieval fails
+        await loginWithRedirect({
+          appState: { returnTo: router.asPath },
+        });
+        return;
       }
   
       if (!accessToken) {
-        throw new Error("No access token available. Please log in.");
+        throw new Error("No access token available. Please log in again.");
       }
   
-      // 2️⃣ Build FormData
+      // 3️⃣ Build FormData payload
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -394,8 +404,6 @@ export default function CreateServicePage() {
       formData.append("discount", data.discount.toString());
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
-  
-      // Send dimensions as JSON string
       formData.append(
         "dimensions",
         JSON.stringify({
@@ -405,22 +413,20 @@ export default function CreateServicePage() {
         })
       );
   
-      // Validate and append image if present
       if (data.image?.[0]) {
         const file = data.image[0];
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-          throw new Error("Only JPG, JPEG, PNG and WEBP formats are allowed");
+          throw new Error("Only JPG, JPEG, PNG, and WEBP formats are allowed.");
         }
         if (file.size > MAX_FILE_SIZE) {
-          throw new Error("Max file size is 15MB");
+          throw new Error("Max file size is 15MB.");
         }
         formData.append("thumbnail", file);
       }
   
-      // Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
-      // 3️⃣ Send request to backend
+      // 4️⃣ Send request to backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
         {
@@ -439,6 +445,7 @@ export default function CreateServicePage() {
         );
       }
   
+      // 5️⃣ Redirect on success
       router.push("/services");
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
@@ -450,7 +457,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-  
   
 
 
