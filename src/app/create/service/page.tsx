@@ -363,13 +363,16 @@ export default function CreateServicePage() {
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
     try {
-      // 1️⃣ Get access token with proper error handling
+      // 1️⃣ Get access token via your API route
       let accessToken: string | undefined;
-      
+  
       try {
-        const { getAccessToken } = await import('@auth0/nextjs-auth0');
-        const tokenResult = await getAccessToken();
-        accessToken = tokenResult?.accessToken;
+        const res = await fetch("/api/auth/access-token");
+        if (!res.ok) {
+          throw new Error("No access token available. Please ensure you're logged in.");
+        }
+        const result = await res.json();
+        accessToken = result.accessToken;
       } catch (tokenError) {
         console.error("Token fetch error:", tokenError);
         throw new Error("Failed to get authentication token. Please try logging in again.");
@@ -389,11 +392,14 @@ export default function CreateServicePage() {
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
       // Send dimensions as JSON string
-      formData.append("dimensions", JSON.stringify({
-        width: data.dimensions.width,
-        height: data.dimensions.height,
-        unit: data.dimensions.unit
-      }));
+      formData.append(
+        "dimensions",
+        JSON.stringify({
+          width: data.dimensions.width,
+          height: data.dimensions.height,
+          unit: data.dimensions.unit,
+        })
+      );
   
       // Validate and append image if present
       if (data.image?.[0]) {
@@ -411,17 +417,22 @@ export default function CreateServicePage() {
       formData.append("configurations", JSON.stringify(data.configurations));
   
       // 3️⃣ Send request to your backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        }
+      );
   
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
       }
   
       router.push("/services");
@@ -429,7 +440,8 @@ export default function CreateServicePage() {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Creation failed",
+        message:
+          error instanceof Error ? error.message : "Creation failed",
       });
     } finally {
       setLoading(false);
