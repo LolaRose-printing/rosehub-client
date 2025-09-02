@@ -365,22 +365,25 @@ export default function CreateServicePage() {
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
-  
     try {
-      // 1️⃣ Get access token directly from Auth0
-      let accessToken: string | undefined;
+      // 1️⃣ Get access token using useAuth0
+      let accessToken: string;
       try {
-        const tokenResponse = await getAccessToken({
+        if (!isAuthenticated) {
+          throw new Error("You must be logged in to submit a service.");
+        }
+  
+        accessToken = await getAccessTokenSilently({
           audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
           scope: "openid profile email"
         });
-        accessToken = tokenResponse?.accessToken;
-        if (!accessToken) {
-          throw new Error("No access token available. Please log in.");
-        }
-      } catch (tokenError) {
-        console.error("Auth0 token error:", tokenError);
+      } catch (err) {
+        console.error("Auth0 token error:", err);
         throw new Error("Failed to get authentication token. Please log in again.");
+      }
+  
+      if (!accessToken) {
+        throw new Error("No access token available. Please log in.");
       }
   
       // 2️⃣ Build FormData
@@ -392,6 +395,7 @@ export default function CreateServicePage() {
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
+      // Send dimensions as JSON string
       formData.append(
         "dimensions",
         JSON.stringify({
@@ -401,6 +405,7 @@ export default function CreateServicePage() {
         })
       );
   
+      // Validate and append image if present
       if (data.image?.[0]) {
         const file = data.image[0];
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -412,9 +417,10 @@ export default function CreateServicePage() {
         formData.append("thumbnail", file);
       }
   
+      // Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
-      // 3️⃣ Send request to your backend
+      // 3️⃣ Send request to backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`,
         {
@@ -428,7 +434,9 @@ export default function CreateServicePage() {
   
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
       }
   
       router.push("/services");
