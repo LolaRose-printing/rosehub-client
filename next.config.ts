@@ -1,16 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    allowedDevOrigins: ['https://client.lolaprint.us', 'http://localhost:3001'],
+  },
   images: {
-    domains: [
-      "localhost",
-        "server.lolaprint.us",
-      "s.gravatar.com",
-      "cdn.auth0.com",
+    remotePatterns: [
+      { protocol: 'https', hostname: 'server.lolaprint.us' },
+      { protocol: 'https', hostname: 's.gravatar.com' },
+      { protocol: 'https', hostname: 'cdn.auth0.com' },
     ],
   },
-
   publicRuntimeConfig: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   },
 };
 
