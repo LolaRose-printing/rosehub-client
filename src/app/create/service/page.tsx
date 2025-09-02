@@ -379,12 +379,13 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     // Force login only if user is definitely not authenticated
     if (!isAuthenticated) {
       console.warn("[Auth] User not authenticated. Redirecting to login...");
-      // Use Auth0's redirect method instead of window.location
-      loginWithRedirect({ 
-        appState: { returnTo: router.asPath },
+      // Use Auth0's redirect method with explicit redirect_uri
+      await loginWithRedirect({ 
+        appState: { returnTo: window.location.href }, // Use full URL instead of just path
         authorizationParams: {
           audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
-          scope: "openid profile email"
+          scope: "openid profile email",
+          redirect_uri: "https://client.lolaprint.us/api/auth/callback" // Explicit redirect URI
         }
       });
       return;
@@ -404,11 +405,12 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
       } catch (err) {
         console.error("[Auth] Failed to get token:", err);
         // Redirect to login if token acquisition fails
-        loginWithRedirect({ 
-          appState: { returnTo: router.asPath },
+        await loginWithRedirect({ 
+          appState: { returnTo: window.location.href }, // Use full URL
           authorizationParams: {
             audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
-            scope: "openid profile email"
+            scope: "openid profile email",
+            redirect_uri: "https://client.lolaprint.us/api/auth/callback" // Explicit redirect URI
           }
         });
         return;

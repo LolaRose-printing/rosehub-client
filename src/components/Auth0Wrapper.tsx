@@ -7,12 +7,15 @@ export default function Auth0Wrapper({ children }: { children: React.ReactNode }
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!;
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE!;
 
+  // Use the production URL always
+  const redirectUri = "https://client.lolaprint.us/api/auth/callback";
+
   return (
     <Auth0Provider
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: "https://client.lolaprint.us/api/auth/callback",
+        redirect_uri: redirectUri,
         audience,
         scope: "openid profile email",
       }}
