@@ -362,24 +362,22 @@ export default function CreateServicePage() {
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
+  
     try {
-      // 1️⃣ Get access token via your API route
+      // 1️⃣ Get access token directly from Auth0
       let accessToken: string | undefined;
-  
       try {
-        const res = await fetch("/api/auth/access-token");
-        if (!res.ok) {
-          throw new Error("No access token available. Please ensure you're logged in.");
+        const tokenResponse = await getAccessToken({
+          audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
+          scope: "openid profile email"
+        });
+        accessToken = tokenResponse?.accessToken;
+        if (!accessToken) {
+          throw new Error("No access token available. Please log in.");
         }
-        const result = await res.json();
-        accessToken = result.accessToken;
       } catch (tokenError) {
-        console.error("Token fetch error:", tokenError);
-        throw new Error("Failed to get authentication token. Please try logging in again.");
-      }
-  
-      if (!accessToken) {
-        throw new Error("No access token available. Please ensure you're logged in.");
+        console.error("Auth0 token error:", tokenError);
+        throw new Error("Failed to get authentication token. Please log in again.");
       }
   
       // 2️⃣ Build FormData
@@ -391,7 +389,6 @@ export default function CreateServicePage() {
       formData.append("category", data.category);
       formData.append("hasFrontBack", data.hasFrontBack.toString());
   
-      // Send dimensions as JSON string
       formData.append(
         "dimensions",
         JSON.stringify({
@@ -401,7 +398,6 @@ export default function CreateServicePage() {
         })
       );
   
-      // Validate and append image if present
       if (data.image?.[0]) {
         const file = data.image[0];
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -413,7 +409,6 @@ export default function CreateServicePage() {
         formData.append("thumbnail", file);
       }
   
-      // Send configurations as JSON string
       formData.append("configurations", JSON.stringify(data.configurations));
   
       // 3️⃣ Send request to your backend
@@ -430,9 +425,7 @@ export default function CreateServicePage() {
   
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
   
       router.push("/services");
@@ -440,8 +433,7 @@ export default function CreateServicePage() {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
         type: "manual",
-        message:
-          error instanceof Error ? error.message : "Creation failed",
+        message: error instanceof Error ? error.message : "Creation failed",
       });
     } finally {
       setLoading(false);
