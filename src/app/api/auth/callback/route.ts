@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       domain: process.env.AUTH0_DOMAIN,
       clientId: process.env.AUTH0_CLIENT_ID,
       baseUrl: process.env.APP_BASE_URL,
-      hasClientSecret: !!process.env.AUTH0_CLIENT_SECRET
+      hasClientSecret: !!process.env.AUTH0_DOMAIN
     });
 
     // FIX: Use AUTH0_BASE_URL instead of APP_BASE_URL
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: process.env.AUTH0_CLIENT_ID!,
-        client_secret: process.env.AUTH0_CLIENT_SECRET!,
+        client_secret: process.env.AUTH0_DOMAIN!,
         code: code,
         redirect_uri: redirectUri,
         audience: process.env.AUTH0_AUDIENCE || 'rosehub-api',

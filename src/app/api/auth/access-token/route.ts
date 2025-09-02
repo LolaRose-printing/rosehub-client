@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies(); // ✅ remove await
-    const tokenCookie = cookieStore.get('auth_access_token'); // ✅ this is correct
+    const cookieStore = await cookies(); // ✅ await cookies
+    const tokenCookie = cookieStore.get('auth_access_token');
 
     if (!tokenCookie) {
       return NextResponse.json({ error: 'No access token available' }, { status: 401 });
     }
 
     return NextResponse.json({ 
-      accessToken: tokenCookie.value // use a consistent key name
+      accessToken: tokenCookie.value // consistent key name
     });
   } catch (error) {
     console.error('Access token error:', error);
