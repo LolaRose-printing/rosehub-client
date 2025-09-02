@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
     console.log('Attempting token exchange with:', {
       domain: process.env.AUTH0_DOMAIN,
       clientId: process.env.AUTH0_CLIENT_ID,
-      baseUrl: process.env.AUTH0_BASE_URL,
+      baseUrl: process.env.APP_BASE_URL,
       hasClientSecret: !!process.env.AUTH0_CLIENT_SECRET
     });
 
     // FIX: Use AUTH0_BASE_URL instead of APP_BASE_URL
-    const redirectUri = `${process.env.AUTH0_BASE_URL}/api/auth/callback`;
+    const redirectUri = `${process.env.APP_BASE_URL}/api/auth/callback`;
     console.log('Using redirect_uri:', redirectUri);
 
     // Exchange authorization code for tokens
