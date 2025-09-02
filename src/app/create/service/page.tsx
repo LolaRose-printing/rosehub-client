@@ -7,8 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCookie } from "cookies-next";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { getAccessToken } from "@auth0/nextjs-auth0";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuthStore } from "@/hooks/useAuthStore";
+import { useAuth } from "@/hooks/useAuth";
 
 type PrintDimension = {
   width: number;
@@ -361,43 +361,66 @@ export default function CreateServicePage() {
     trigger(); // validate new form state
   };
 
-  const { getAccessTokenSilently, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
-
+  const { user, isLoading: authLoading } = useAuth();
+  const { token } = useAuthStore();
+  
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
     try {
-      // Wait until Auth0 finishes loading
-      if (isLoading) {
-        console.warn("[Auth] Auth0 still loading...");
+      // Wait until auth finishes loading
+      if (authLoading) {
+        console.warn("[Auth] Auth still loading...");
         return;
       }
   
       // Force login only if user is definitely not authenticated
-      if (!isAuthenticated) {
+      if (!user) {
         console.warn("[Auth] User not authenticated. Redirecting to login...");
-        await loginWithRedirect({ appState: { returnTo: router.asPath } });
+        // Redirect to your custom auth login endpoint
+        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(router.asPath)}`;
         return;
       }
   
-      // Try to get token silently
-      let accessToken: string;
-      try {
-        accessToken = await getAccessTokenSilently({
-          audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
-          scope: "openid profile email",
-        });
-      } catch (err) {
-        console.error("[Auth] Failed to get token silently:", err);
-        await loginWithRedirect({ appState: { returnTo: router.asPath } });
-        return;
-      }
+      // Use the token from your auth store
+      const accessToken = token;
   
       if (!accessToken) {
         throw new Error("No access token available. Please log in again.");
       }
   
-      // ... rest of your FormData and fetch code
+      // Create FormData for the service creation
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('price', data.price.toString());
+      formData.append('discount', data.discount.toString());
+      formData.append('dimensions', JSON.stringify(data.dimensions));
+      formData.append('hasFrontBack', data.hasFrontBack.toString());
+      formData.append('configurations', JSON.stringify(data.configurations));
+      formData.append('category', data.category);
+      
+      if (data.image?.[0]) {
+        formData.append('image', data.image[0]);
+      }
+  
+      // Make the API request to create the service
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create service');
+      }
+  
+      const result = await response.json();
+      router.push('/services');
+      
     } catch (error) {
       console.error("[DEBUG] Submission error:", error);
       setError("response", {
@@ -408,7 +431,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-  
 
 
   return (
