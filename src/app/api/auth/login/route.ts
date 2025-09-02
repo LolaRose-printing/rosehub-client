@@ -38,17 +38,17 @@ export async function GET(request: NextRequest) {
     const nonce = generateRandomString(32);
 
     const loginUrl =
-      `${auth0Base}/authorize?` +
-      new URLSearchParams({
-        response_type: "code",
-        client_id: clientId,
-        redirect_uri: `${baseUrl}/api/auth/callback`,
-        scope: process.env.AUTH0_SCOPE || "openid profile email",
-        audience: audience || "",
-        state,
-        nonce,
-      }).toString();
-
+  `https://${domain}/authorize?` +  // ← add https://
+  new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: `${baseUrl}/api/auth/callback`,
+    scope: process.env.AUTH0_SCOPE || "openid profile email",
+    audience: audience || "",
+    state,
+    nonce,
+  }).toString();
+  
     console.log("Redirecting to Auth0 login:", loginUrl);
 
     return NextResponse.redirect(loginUrl);
