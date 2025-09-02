@@ -1,7 +1,7 @@
 // app/api/auth/login/route.ts
-import { NextRequest, NextResponse } from "next/server"; // Make sure this import exists
+import { NextRequest, NextResponse } from "next/server";
 
-// Helper function for state/nonce
+// Helper function to generate state/nonce
 function generateRandomString(length: number): string {
   const array = new Uint8Array(length);
   if (typeof crypto !== "undefined") {
@@ -31,11 +31,14 @@ export async function GET(request: NextRequest) {
       throw new Error("Auth0 configuration missing");
     }
 
+    // Ensure the domain has https:// prefix
+    const auth0Base = domain.startsWith("http") ? domain : `https://${domain}`;
+
     const state = generateRandomString(32);
     const nonce = generateRandomString(32);
 
     const loginUrl =
-      `${domain}/authorize?` +
+      `${auth0Base}/authorize?` +
       new URLSearchParams({
         response_type: "code",
         client_id: clientId,
@@ -45,6 +48,8 @@ export async function GET(request: NextRequest) {
         state,
         nonce,
       }).toString();
+
+    console.log("Redirecting to Auth0 login:", loginUrl);
 
     return NextResponse.redirect(loginUrl);
   } catch (error) {
