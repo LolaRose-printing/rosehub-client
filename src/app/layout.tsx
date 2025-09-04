@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Auth0Wrapper from "@/components/Auth0Wrapper";
-import { AuthProvider } from "@/components/AuthProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,11 +19,9 @@ export default function RootLayout({ children, modal }: { children: React.ReactN
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
         <Auth0Wrapper>
-          <AuthProvider>
-            {modal}
-            <div id="modal-root" />
-            {children}
-          </AuthProvider>
+          {modal}
+          <div id="modal-root" />
+          {children}
         </Auth0Wrapper>
       </body>
     </html>

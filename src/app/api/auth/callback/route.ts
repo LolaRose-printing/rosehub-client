@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
       user['https://rosehub.com/roles'] = ['admin'];
     }
 
+    console.log("heree", tokenResponse);
+
     // Set cookies and redirect
     const response = NextResponse.redirect(new URL('/', request.url));
     response.cookies.set('auth_user', JSON.stringify(user), { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7 });

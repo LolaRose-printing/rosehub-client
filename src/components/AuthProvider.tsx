@@ -1,39 +1,40 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@auth0/nextjs-auth0";
 import { useAuthStore } from "@/hooks/useAuthStore";
 import { useEffect, ReactNode } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { user, error, isLoading } = useAuth();
+  const { user, error, isLoading } = useUser();
   const { setUser, setLoading, setToken } = useAuthStore();
-  const { getAccessTokenSilently } = useAuth0();
 
   useEffect(() => {
-    // Update loading state
     setLoading(isLoading);
 
     const initializeAuth = async () => {
       if (user) {
-        const roles = user["https://rosehub.com/roles"] || [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const roles = (user as any)?.["https://rosehub.com/roles"] || [];
         setUser(user, roles);
 
         try {
-          // Get token directly from Auth0
-          const accessToken = await getAccessTokenSilently({
-            audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE,
-            scope: "openid profile email",
-          });
+          // In Next.js, you don't call getAccessTokenSilently on the client.
+          // Instead, use your /api/auth route to fetch the access token securely.
+          const res = await fetch("/api/auth/token");
+          if (res.ok) {
+            const { accessToken } = await res.json();
+            setToken(accessToken);
 
-          setToken(accessToken);
-
-          if (typeof window !== "undefined") {
-            localStorage.setItem("auth_token", accessToken);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("auth_token", accessToken);
+            }
+          } else {
+            console.error("[AuthProvider] Failed to fetch token");
+            setToken(null);
           }
         } catch (err) {
           console.error("[AuthProvider] Failed to get token:", err);
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initializeAuth();
-  }, [user, isLoading, setUser, setToken, setLoading, getAccessTokenSilently]);
+  }, [user, isLoading, setUser, setToken, setLoading]);
 
   if (error) console.error("[AuthProvider] Auth error:", error);
 

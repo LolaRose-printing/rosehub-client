@@ -24,7 +24,7 @@ export function useAuth() {
     try {
       setIsLoading(true);
       const response = await fetch('/api/auth/profile');
-      
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
