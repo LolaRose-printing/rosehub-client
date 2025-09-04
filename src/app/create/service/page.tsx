@@ -352,11 +352,18 @@ export default function CreateServicePage() {
     setLoading(true);
   
     try {
-      // Make sure the user is logged in (redirects if not)
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Build form data
+      // Get token from cookies
+      const cookies = document.cookie.split('; ');
+      const tokenCookie = cookies.find(row => row.startsWith('auth_access_token='));
+      const token = tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : null;
+  
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+  
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -370,17 +377,12 @@ export default function CreateServicePage() {
         formData.append("image", data.image[0]);
       }
   
-      // Call your API with credentials included
-      const apiBase = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiBase) {
-        throw new Error("Missing NEXT_PUBLIC_API_URL");
-      }
-  
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: "POST",
-        credentials: 'include', // ← CRITICAL: Include cookies (auth token)
+        headers: {
+          'Authorization': `Bearer ${token}`, // Send token in header
+        },
         body: formData,
-        // Note: Don't set Content-Type header - browser will set it automatically for FormData
       });
   
       if (!response.ok) {
@@ -394,7 +396,6 @@ export default function CreateServicePage() {
         throw new Error(message);
       }
   
-      // Success → go to listing
       await response.json();
       router.push("/services");
     } catch (error) {
@@ -407,6 +408,8 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
+
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Create New Print Service</h1>
