@@ -347,7 +347,6 @@ export default function CreateServicePage() {
     }
     return true;
   };
-
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
@@ -355,33 +354,17 @@ export default function CreateServicePage() {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from cookies - ROBUST VERSION
-      const getCookie = (name: string): string | null => {
-        if (typeof document === 'undefined') return null;
-        
-        const cookieString = document.cookie;
-        if (!cookieString) return null;
-        
-        const cookies = cookieString.split('; ');
-        for (const cookie of cookies) {
-          const [cookieName, ...cookieValueParts] = cookie.split('=');
-          if (cookieName === name) {
-            const cookieValue = cookieValueParts.join('='); // Handle values with '='
-            return decodeURIComponent(cookieValue);
-          }
-        }
-        return null;
-      };
+      // Get token from server-side API
+      const tokenResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include', // Include cookies
+      });
   
-      const token = getCookie('auth_access_token');
-  
-      // DEBUG: Check what cookies are available
-      console.log('All cookies:', document.cookie);
-      console.log('Token found:', token ? 'YES' : 'NO');
-      if (token) {
-        console.log('Token length:', token.length);
-        console.log('Token starts with:', token.substring(0, 20) + '...');
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve authentication token");
       }
+  
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken; // ← Use accessToken (not token)
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
@@ -400,15 +383,7 @@ export default function CreateServicePage() {
         formData.append("image", data.image[0]);
       }
   
-      // DEBUG: Log the API URL and request details
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`;
-      console.log('Making request to:', apiUrl);
-      console.log('Form data entries:');
-      for (const [key, value] of formData.entries()) {
-        console.log(`${key}:`, value);
-      }
-  
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -416,25 +391,18 @@ export default function CreateServicePage() {
         body: formData,
       });
   
-      // DEBUG: Log response status
-      console.log('Response status:', response.status, response.statusText);
-  
       if (!response.ok) {
         let message = "Failed to create service";
         try {
           const err = await response.json();
-          console.log('Error response:', err);
           if (err?.message) message = err.message;
-        } catch (parseError) {
-          console.log('Failed to parse error response:', parseError);
-          const text = await response.text();
-          console.log('Raw error response:', text.substring(0, 200) + '...');
+        } catch {
+          /* ignore */
         }
         throw new Error(message);
       }
   
-      const result = await response.json();
-      console.log('Success response:', result);
+      await response.json();
       router.push("/services");
     } catch (error) {
       console.error("[CreateService] Submission error:", error);
@@ -446,7 +414,6 @@ export default function CreateServicePage() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
