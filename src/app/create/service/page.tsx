@@ -377,7 +377,7 @@ export default function CreateServicePage() {
         throw new Error("Missing NEXT_PUBLIC_API_URL");
       }
 
-      const response = await fetch(`${apiBase}/services/create`, {
+      const response = await fetch(`${apiBase}/v1/services/create`, {
         method: "POST",
         headers: {},
         body: formData,
