@@ -380,7 +380,7 @@ export default function CreateServicePage() {
       formData.append("configurations", JSON.stringify(data.configurations));
       formData.append("category", data.category);
       if (data.image?.[0]) {
-        formData.append("image", data.image[0]);
+        formData.append("thumbnail", data.image[0]);
       }
   
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
