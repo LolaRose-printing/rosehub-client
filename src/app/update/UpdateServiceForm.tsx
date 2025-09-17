@@ -251,25 +251,26 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         throw new Error("No authentication token available. Please log in again.");
       }
   
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("configurations", JSON.stringify(data.configurations));
-      formData.append("category", data.category);
-      if (data.image?.[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
+      // Prepare the update data in JSON format
+      const updateData = {
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        discount: data.discount,
+        dimensions: data.dimensions,
+        hasFrontBack: data.hasFrontBack,
+        configurations: data.configurations,
+        category: data.category,
+      };
   
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${service.id}`, {
+      // Send JSON data to the update endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json', // Important: JSON content type
         },
-        body: formData,
+        body: JSON.stringify(updateData),
       });
   
       if (!response.ok) {
@@ -283,8 +284,28 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         throw new Error(message);
       }
   
+      // If there's a new image, upload it separately
+      if (data.image?.[0]) {
+        const imageFormData = new FormData();
+        imageFormData.append("thumbnail", data.image[0]);
+        
+        // You'll need to check if your backend has a separate image update endpoint
+        const imageResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}/image`, {
+          method: "POST",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: imageFormData,
+        });
+  
+        if (!imageResponse.ok) {
+          console.warn("Failed to update service image, but service was updated successfully");
+        }
+      }
+  
       await response.json();
       router.push("/services");
+      router.refresh();
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
