@@ -232,49 +232,36 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
-  
     try {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API - EXACTLY like create service
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include',
-      });
-  
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to retrieve authentication token");
-      }
-  
+      const tokenResponse = await fetch('/api/auth/access-token', { credentials: 'include' });
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // Use accessToken
+      const token = tokenData.accessToken;
+      if (!token) throw new Error("No authentication token");
   
-      if (!token) {
-        throw new Error("No authentication token available. Please log in again.");
+      // Use FormData
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
+      formData.append("category", data.category);
+      formData.append("dimensions", JSON.stringify(data.dimensions));
+      formData.append("configurations", JSON.stringify(data.configurations));
+  
+      if (data.image && data.image[0]) {
+        formData.append("thumbnail", data.image[0]); // must match backend field name
       }
   
-      // Prepare the update data in JSON format (different from create)
-      const updateData = {
-        title: data.title,
-        description: data.description,
-        price: data.price,
-        discount: data.discount,
-        dimensions: data.dimensions,
-        hasFrontBack: data.hasFrontBack,
-        configurations: data.configurations,
-        category: data.category,
-      };
-  
-      console.log("Updating service with data:", updateData);
-  
-      // Send JSON data to the update endpoint (different URL and method)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updateData),
+        body: formData,
       });
   
       if (!response.ok) {
@@ -282,29 +269,23 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         try {
           const err = await response.json();
           if (err?.message) message = err.message;
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         throw new Error(message);
       }
   
       const result = await response.json();
       console.log("Service updated successfully:", result);
   
-      // Redirect to services page
       router.push("/services");
       router.refresh();
-  
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Update failed. Please try again.",
-      });
+      setError("response", { type: "manual", message: error instanceof Error ? error.message : "Update failed" });
     } finally {
       setLoading(false);
     }
   };
+  
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>
