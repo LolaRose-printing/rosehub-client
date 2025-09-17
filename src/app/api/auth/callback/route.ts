@@ -18,8 +18,13 @@ export async function GET(request: NextRequest) {
     const domain = process.env.AUTH0_DOMAIN!;
     const clientId = process.env.AUTH0_CLIENT_ID!;
     const clientSecret = process.env.AUTH0_CLIENT_SECRET!;
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://client.lolaprint.us'}/api/auth/callback`;
     const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE!;
+
+    // Force production redirect or fallback to NEXT_PUBLIC_BASE_URL
+    const redirectBase = process.env.NODE_ENV === 'production'
+      ? 'https://client.lolaprint.us'
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const redirectUri = `${redirectBase}/api/auth/callback`;
 
     // Exchange code for tokens
     const tokenResponse = await fetch(`https://${domain}/oauth/token`, {
@@ -28,7 +33,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: clientId,
-        client_secret: clientSecret, // ✅ Correct secret
+        client_secret: clientSecret,
         code,
         redirect_uri: redirectUri,
         audience,
@@ -37,7 +42,6 @@ export async function GET(request: NextRequest) {
 
     const responseText = await tokenResponse.text();
     if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${responseText}`);
-
     const tokens = JSON.parse(responseText);
 
     // Get user info
@@ -65,16 +69,27 @@ export async function GET(request: NextRequest) {
       user['https://rosehub.com/roles'] = ['admin'];
     }
 
-    console.log("heree", tokenResponse);
-
-    // Set cookies and redirect
-    const response = NextResponse.redirect(new URL('/', request.url));
-    response.cookies.set('auth_user', JSON.stringify(user), { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7 });
-    response.cookies.set('auth_access_token', tokens.access_token, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: tokens.expires_in || 3600 });
+    // Set cookies and redirect to home
+    const response = NextResponse.redirect(new URL('/', redirectBase));
+    response.cookies.set('auth_user', JSON.stringify(user), {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    response.cookies.set('auth_access_token', tokens.access_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: tokens.expires_in || 3600,
+    });
 
     return response;
   } catch (err) {
     console.error('Callback error:', err);
-    return NextResponse.redirect(new URL('/auth?error=callback_failed', request.url));
+    const redirectBase = process.env.NODE_ENV === 'production'
+      ? 'https://client.lolaprint.us'
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    return NextResponse.redirect(new URL('/auth?error=callback_failed', redirectBase));
   }
 }
