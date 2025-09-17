@@ -236,7 +236,15 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Use FormData for file upload
+      // Fetch token from your API route
+      const tokenResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include',
+      });
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken;
+      if (!token) throw new Error("No authentication token");
+  
+      // FormData for files
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -251,13 +259,15 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         formData.append("thumbnail", data.image[0]);
       }
   
-      // Send PUT request with cookies (no Authorization header)
+      // Send PUT request with token header and FormData
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
         {
           method: "PUT",
+          headers: {
+            'Authorization': `Bearer ${token}`, // Must include token
+          },
           body: formData,
-          credentials: "include", // <-- send auth cookie automatically
         }
       );
   
