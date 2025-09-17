@@ -1,4 +1,4 @@
-import UpdateServiceForm from '../UpdateServiceForm';
+import UpdateServiceForm from '../../UpdateServiceForm';
 
 interface Service {
   id: number;
