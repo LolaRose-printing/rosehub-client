@@ -6,7 +6,6 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { IoMdAdd, IoMdRemove, IoMdImage } from "react-icons/io";
-import { useAuth } from "@/hooks/useAuth";
 
 type PrintDimension = {
   width: number;
@@ -171,9 +170,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     { title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] },
   ]);
   const [loading, setLoading] = useState(false);
+  const [authChecking, setAuthChecking] = useState(false);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  const { user } = useAuth();
 
   const {
     register,
@@ -220,58 +218,54 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
   }, [watchImage]);
 
-  const ensureLogin = async () => {
-    if (!user) {
-      const returnTo = typeof window !== "undefined" ? window.location.href : "/";
-      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
-      return false;
-    }
-    return true;
-  };
-
-  const getAuthToken = async () => {
+  // Improved authentication check
+  const ensureAuthenticated = async (): Promise<string> => {
+    setAuthChecking(true);
     try {
-      const tokenResponse = await fetch('/api/auth/token', { // Try different endpoint
+      // First try to get the current session
+      const sessionResponse = await fetch('/api/auth/me', {
         credentials: 'include',
       });
-  
-      if (tokenResponse.ok) {
-        const tokenData = await tokenResponse.json();
-        return tokenData.accessToken || tokenData.token;
+
+      if (!sessionResponse.ok) {
+        // Redirect to login if not authenticated
+        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+        throw new Error("Not authenticated");
       }
-  
-      // Fallback to access-token endpoint
-      const fallbackResponse = await fetch('/api/auth/access-token', {
+
+      // Then get the access token
+      const tokenResponse = await fetch('/api/auth/access-token', {
         credentials: 'include',
       });
-  
-      if (fallbackResponse.ok) {
-        const tokenData = await fallbackResponse.json();
-        return tokenData.accessToken || tokenData.token;
+
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve access token");
       }
-  
-      throw new Error("Failed to retrieve authentication token");
+
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken || tokenData.token;
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      return token;
     } catch (error) {
-      console.error("Token retrieval error:", error);
-      throw new Error("Authentication token unavailable");
+      console.error("Authentication error:", error);
+      throw new Error("Please log in to update services");
+    } finally {
+      setAuthChecking(false);
     }
   };
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
-  
+
     try {
-      const ok = await ensureLogin();
-      if (!ok) return;
-  
-      // Get token using the new function
-      const token = await getAuthToken();
-  
-      if (!token) {
-        throw new Error("No authentication token available. Please log in again.");
-      }
-  
-      // Prepare the update data in JSON format
+      // Get authentication token
+      const token = await ensureAuthenticated();
+
+      // Prepare the update data in JSON format (matches your backend UpdateServiceDto)
       const updateData = {
         title: data.title,
         description: data.description,
@@ -282,9 +276,9 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         configurations: data.configurations,
         category: data.category,
       };
-  
-      console.log("Sending update with token:", token.substring(0, 20) + "..."); // Debug log
-  
+
+      console.log("Updating service with data:", updateData);
+
       // Send JSON data to the update endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
@@ -294,15 +288,15 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         },
         body: JSON.stringify(updateData),
       });
-  
+
       if (!response.ok) {
-        // If unauthorized, try to refresh token
+        // Handle specific error cases
         if (response.status === 401) {
-          // Force logout and redirect to login
-          window.location.href = `/api/auth/logout?returnTo=${encodeURIComponent(window.location.href)}`;
+          // Token expired, redirect to login
+          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
           return;
         }
-  
+
         let message = "Failed to update service";
         try {
           const err = await response.json();
@@ -312,15 +306,19 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         }
         throw new Error(message);
       }
-  
-      await response.json();
+
+      const result = await response.json();
+      console.log("Service updated successfully:", result);
+
+      // Redirect to services page
       router.push("/services");
       router.refresh();
+
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Update failed. Please try logging in again.",
+        message: error instanceof Error ? error.message : "Update failed. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -329,7 +327,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
-      <h1 className="text-2xl font-bold text-center mb-8">Update Print Service</h1>
+      <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -550,136 +548,152 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
                     <label className="block text-sm font-medium mb-2">Available Options *</label>
                     <div className="space-y-3 mb-4">
                       {config.items.map((item, itemIdx) => (
-                        <div key={itemIdx} className="flex items-center gap-3">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) =>
-                              dispatch({
-                                type: ConfigActionType.UPDATE_ITEM_NAME,
-                                payload: { configId, itemIdx, name: e.target.value },
-                              })
-                            }
-                            className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            placeholder="Option name"
-                          />
-
-                          <div className="flex items-center w-32">
-                            <span className="mr-2">+$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={item.additionalPrice}
-                              onChange={(e) =>
-                                dispatch({
-                                  type: ConfigActionType.UPDATE_ITEM_PRICE,
-                                  payload: {
-                                    configId,
-                                    itemIdx,
-                                    price: parseFloat(e.target.value) || 0,
-                                  },
-                                })
-                              }
-                              className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              dispatch({
-                                type: ConfigActionType.REMOVE_ITEM,
-                                payload: { configId, itemIdx },
-                              })
-                            }
-                            className="text-red-400 hover:text-red-300 p-2"
-                          >
-                            <IoMdRemove />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex">
+                        <div key={itemIdx} className="flex items
+                                            <div key={itemIdx} className="flex items-center gap-3">
                       <input
                         type="text"
-                        placeholder="New option name..."
-                        className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const input = e.currentTarget;
-                            if (input.value.trim()) {
-                              dispatch({
-                                type: ConfigActionType.ADD_ITEM,
-                                payload: {
-                                  configId,
-                                  item: { name: input.value.trim(), additionalPrice: 0 },
-                                },
-                              });
-                              input.value = "";
-                            }
-                          }
-                        }}
+                        value={item.name}
+                        onChange={(e) =>
+                          dispatch({
+                            type: ConfigActionType.UPDATE_ITEM_NAME,
+                            payload: { configId, itemIdx, name: e.target.value },
+                          })
+                        }
+                        className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="Option name"
                       />
+
+                      <div className="flex items-center w-32">
+                        <span className="mr-2">+$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.additionalPrice}
+                          onChange={(e) =>
+                            dispatch({
+                              type: ConfigActionType.UPDATE_ITEM_PRICE,
+                              payload: {
+                                configId,
+                                itemIdx,
+                                price: parseFloat(e.target.value) || 0,
+                              },
+                            })
+                          }
+                          className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="0.00"
+                        />
+                      </div>
+
                       <button
                         type="button"
-                        className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
-                        onClick={(e) => {
-                          const input = (e.currentTarget.previousElementSibling as HTMLInputElement) || null;
-                          if (input?.value.trim()) {
-                            dispatch({
-                              type: ConfigActionType.ADD_ITEM,
-                              payload: { configId, item: { name: input.value.trim(), additionalPrice: 0 } },
-                            });
-                            input.value = "";
-                          }
-                        }}
+                        onClick={() =>
+                          dispatch({
+                            type: ConfigActionType.REMOVE_ITEM,
+                            payload: { configId, itemIdx },
+                          })
+                        }
+                        className="text-red-400 hover:text-red-300 p-2"
                       >
-                        Add
+                        <IoMdRemove />
                       </button>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+
+                <div className="flex">
+                  <input
+                    type="text"
+                    placeholder="New option name..."
+                    className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const input = e.currentTarget;
+                        if (input.value.trim()) {
+                          dispatch({
+                            type: ConfigActionType.ADD_ITEM,
+                            payload: {
+                              configId,
+                              item: { name: input.value.trim(), additionalPrice: 0 },
+                            },
+                          });
+                          input.value = "";
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
+                    onClick={(e) => {
+                      const input = (e.currentTarget.previousElementSibling as HTMLInputElement) || null;
+                      if (input?.value.trim()) {
+                        dispatch({
+                          type: ConfigActionType.ADD_ITEM,
+                          payload: { configId, item: { name: input.value.trim(), additionalPrice: 0 } },
+                        });
+                        input.value = "";
+                      }
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
-          {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
+          ))}
         </div>
-
-        <div className="flex justify-center pt-6">
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Updating Service...
-              </>
-            ) : (
-              "Update Service"
-            )}
-          </button>
-        </div>
-
-        {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
-      </form>
+      )}
+      {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
     </div>
-  );
-}
+
+    <div className="flex justify-center pt-6">
+      <button
+        type="submit"
+        disabled={loading || authChecking}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+      >
+        {authChecking ? (
+          <>
+            <svg
+              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Checking Authentication...
+          </>
+        ) : loading ? (
+          <>
+            <svg
+              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Updating Service...
+          </>
+        ) : (
+          "Update Service"
+        )}
+      </button>
+    </div>
+
+    {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
+  </form>
+</div>
