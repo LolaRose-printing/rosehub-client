@@ -218,22 +218,18 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
   }, [watchImage]);
 
-  // Improved authentication check
   const ensureAuthenticated = async (): Promise<string> => {
     setAuthChecking(true);
     try {
-      // First try to get the current session
       const sessionResponse = await fetch('/api/auth/me', {
         credentials: 'include',
       });
 
       if (!sessionResponse.ok) {
-        // Redirect to login if not authenticated
         window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
         throw new Error("Not authenticated");
       }
 
-      // Then get the access token
       const tokenResponse = await fetch('/api/auth/access-token', {
         credentials: 'include',
       });
@@ -262,10 +258,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     setLoading(true);
 
     try {
-      // Get authentication token
       const token = await ensureAuthenticated();
 
-      // Prepare the update data in JSON format (matches your backend UpdateServiceDto)
       const updateData = {
         title: data.title,
         description: data.description,
@@ -279,7 +273,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
 
       console.log("Updating service with data:", updateData);
 
-      // Send JSON data to the update endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
@@ -290,9 +283,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       });
 
       if (!response.ok) {
-        // Handle specific error cases
         if (response.status === 401) {
-          // Token expired, redirect to login
           window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
           return;
         }
@@ -310,7 +301,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const result = await response.json();
       console.log("Service updated successfully:", result);
 
-      // Redirect to services page
       router.push("/services");
       router.refresh();
 
@@ -545,155 +535,156 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
                   </div>
 
                   <div>
-  <label className="block text-sm font-medium mb-2">Available Options *</label>
-  <div className="space-y-3 mb-4">
-    {config.items.map((item, itemIdx) => (
-      <div key={itemIdx} className="flex items-center gap-3">
-        <input
-          type="text"
-          value={item.name}
-          onChange={(e) =>
-            dispatch({
-              type: ConfigActionType.UPDATE_ITEM_NAME,
-              payload: { configId, itemIdx, name: e.target.value },
-            })
-          }
-          className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="Option name"
-        />
+                    <label className="block text-sm font-medium mb-2">Available Options *</label>
+                    <div className="space-y-3 mb-4">
+                      {config.items.map((item, itemIdx) => (
+                        <div key={itemIdx} className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) =>
+                              dispatch({
+                                type: ConfigActionType.UPDATE_ITEM_NAME,
+                                payload: { configId, itemIdx, name: e.target.value },
+                              })
+                            }
+                            className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Option name"
+                          />
 
-        <div className="flex items-center w-32">
-          <span className="mr-2">+$</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={item.additionalPrice}
-            onChange={(e) =>
-              dispatch({
-                type: ConfigActionType.UPDATE_ITEM_PRICE,
-                payload: {
-                  configId,
-                  itemIdx,
-                  price: parseFloat(e.target.value) || 0,
-                },
-              })
-            }
-            className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            placeholder="0.00"
-          />
-        </div>
+                          <div className="flex items-center w-32">
+                            <span className="mr-2">+$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.additionalPrice}
+                              onChange={(e) =>
+                                dispatch({
+                                  type: ConfigActionType.UPDATE_ITEM_PRICE,
+                                  payload: {
+                                    configId,
+                                    itemIdx,
+                                    price: parseFloat(e.target.value) || 0,
+                                  },
+                                })
+                              }
+                              className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="0.00"
+                            />
+                          </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            dispatch({
-              type: ConfigActionType.REMOVE_ITEM,
-              payload: { configId, itemIdx },
-            })
-          }
-          className="text-red-400 hover:text-red-300 p-2"
-        >
-          <IoMdRemove />
-        </button>
-      </div>
-    ))}
-  </div>
-</div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              dispatch({
+                                type: ConfigActionType.REMOVE_ITEM,
+                                payload: { configId, itemIdx },
+                              })
+                            }
+                            className="text-red-400 hover:text-red-300 p-2"
+                          >
+                            <IoMdRemove />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
 
-                <div className="flex">
-                  <input
-                    type="text"
-                    placeholder="New option name..."
-                    className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const input = e.currentTarget;
-                        if (input.value.trim()) {
-                          dispatch({
-                            type: ConfigActionType.ADD_ITEM,
-                            payload: {
-                              configId,
-                              item: { name: input.value.trim(), additionalPrice: 0 },
-                            },
-                          });
-                          input.value = "";
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
-                    onClick={(e) => {
-                      const input = (e.currentTarget.previousElementSibling as HTMLInputElement) || null;
-                      if (input?.value.trim()) {
-                        dispatch({
-                          type: ConfigActionType.ADD_ITEM,
-                          payload: { configId, item: { name: input.value.trim(), additionalPrice: 0 } },
-                        });
-                        input.value = "";
-                      }
-                    }}
-                  >
-                    Add
-                  </button>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        placeholder="New option name..."
+                        className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const input = e.currentTarget;
+                            if (input.value.trim()) {
+                              dispatch({
+                                type: ConfigActionType.ADD_ITEM,
+                                payload: {
+                                  configId,
+                                  item: { name: input.value.trim(), additionalPrice: 0 },
+                                },
+                              });
+                              input.value = "";
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
+                        onClick={(e) => {
+                          const input = (e.currentTarget.previousElementSibling as HTMLInputElement) || null;
+                          if (input?.value.trim()) {
+                            dispatch({
+                              type: ConfigActionType.ADD_ITEM,
+                              payload: { configId, item: { name: input.value.trim(), additionalPrice: 0 } },
+                            });
+                            input.value = "";
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
+          {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
         </div>
-      )}
-      {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
-    </div>
 
-    <div className="flex justify-center pt-6">
-      <button
-        type="submit"
-        disabled={loading || authChecking}
-        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
-      >
-        {authChecking ? (
-          <>
-            <svg
-              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Checking Authentication...
-          </>
-        ) : loading ? (
-          <>
-            <svg
-              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Updating Service...
-          </>
-        ) : (
-          "Update Service"
-        )}
-      </button>
-    </div>
+        <div className="flex justify-center pt-6">
+          <button
+            type="submit"
+            disabled={loading || authChecking}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+          >
+            {authChecking ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Checking Authentication...
+              </>
+            ) : loading ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Updating Service...
+              </>
+            ) : (
+              "Update Service"
+            )}
+          </button>
+        </div>
 
-    {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
-  </form>
-</div>
+        {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
+      </form>
+    </div>
+  );
+}
