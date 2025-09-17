@@ -46,7 +46,11 @@ interface UpdateServiceFormProps {
     discount: number;
     hasFrontBack: boolean;
     category: string;
-    dimensions: PrintDimension;
+    dimensions: {
+      width: number;
+      height: number;
+      unit: string; 
+    };
     configurations: PrintConfiguration[];
     imageUrl?: string;
   };
@@ -186,7 +190,12 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       description: service.description,
       price: service.price,
       discount: service.discount,
-      dimensions: service.dimensions,
+      dimensions: {
+        ...service.dimensions,
+        unit: (service.dimensions.unit === "in" || service.dimensions.unit === "cm" || service.dimensions.unit === "px") 
+          ? service.dimensions.unit as "in" | "cm" | "px"
+          : "px" as const
+      },
       hasFrontBack: service.hasFrontBack,
       configurations: service.configurations,
       category: service.category as "brochure" | "booklet" | "other",
