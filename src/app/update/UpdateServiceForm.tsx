@@ -241,7 +241,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         credentials: 'include',
       });
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken;
+      const token = tokenData.access_token;
       if (!token) throw new Error("No authentication token");
   
       // FormData for files
