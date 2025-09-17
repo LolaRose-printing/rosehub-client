@@ -237,7 +237,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API - use the same pattern as create service
+      // Get token from server-side API - EXACTLY like create service
       const tokenResponse = await fetch('/api/auth/access-token', {
         credentials: 'include',
       });
@@ -247,13 +247,13 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       }
   
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken || tokenData.token; // Try both accessToken and token
+      const token = tokenData.accessToken; // Use accessToken
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
       }
   
-      // Prepare the update data in JSON format
+      // Prepare the update data in JSON format (different from create)
       const updateData = {
         title: data.title,
         description: data.description,
@@ -266,9 +266,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       };
   
       console.log("Updating service with data:", updateData);
-      console.log("Using token:", token); // Debug: log the token
   
-      // Send JSON data to the update endpoint
+      // Send JSON data to the update endpoint (different URL and method)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
@@ -279,13 +278,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       });
   
       if (!response.ok) {
-        if (response.status === 401) {
-          // Token is invalid/expired, redirect to login
-          const returnTo = encodeURIComponent(window.location.href);
-          window.location.href = `/api/auth/login?returnTo=${returnTo}`;
-          return;
-        }
-  
         let message = "Failed to update service";
         try {
           const err = await response.json();
