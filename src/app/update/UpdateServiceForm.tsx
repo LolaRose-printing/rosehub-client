@@ -218,48 +218,13 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
   }, [watchImage]);
 
-  const ensureAuthenticated = async (): Promise<string> => {
-    setAuthChecking(true);
-    try {
-      const sessionResponse = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
 
-      if (!sessionResponse.ok) {
-        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
-        throw new Error("Not authenticated");
-      }
-
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include',
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to retrieve access token");
-      }
-
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken || tokenData.token;
-
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
-
-      return token;
-    } catch (error) {
-      console.error("Authentication error:", error);
-      throw new Error("Please log in to update services");
-    } finally {
-      setAuthChecking(false);
-    }
-  };
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
-
+  
     try {
-      const token = await ensureAuthenticated();
-
+      // Prepare the update data in JSON format (matches your backend UpdateServiceDto)
       const updateData = {
         title: data.title,
         description: data.description,
@@ -270,24 +235,27 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         configurations: data.configurations,
         category: data.category,
       };
-
+  
       console.log("Updating service with data:", updateData);
-
+  
+      // Send JSON data to the update endpoint - the server will handle authentication
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // This will send cookies including auth token
         body: JSON.stringify(updateData),
       });
-
+  
       if (!response.ok) {
+        // Handle specific error cases
         if (response.status === 401) {
-          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+          // Token expired, redirect to login
+          window.location.href = `/login?returnTo=${encodeURIComponent(window.location.href)}`;
           return;
         }
-
+  
         let message = "Failed to update service";
         try {
           const err = await response.json();
@@ -297,13 +265,14 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         }
         throw new Error(message);
       }
-
+  
       const result = await response.json();
       console.log("Service updated successfully:", result);
-
+  
+      // Redirect to services page
       router.push("/services");
       router.refresh();
-
+  
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
@@ -314,7 +283,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       setLoading(false);
     }
   };
-
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>
@@ -638,49 +606,32 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         </div>
 
         <div className="flex justify-center pt-6">
-          <button
-            type="submit"
-            disabled={loading || authChecking}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
-          >
-            {authChecking ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Checking Authentication...
-              </>
-            ) : loading ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Updating Service...
-              </>
-            ) : (
-              "Update Service"
-            )}
-          </button>
+        <button
+  type="submit"
+  disabled={loading}
+  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+>
+  {loading ? (
+    <>
+      <svg
+        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+      Updating Service...
+    </>
+  ) : (
+    "Update Service"
+  )}
+</button>
         </div>
 
         {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
