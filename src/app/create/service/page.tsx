@@ -357,7 +357,7 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
 
     // Get token from server-side API
     const tokenResponse = await fetch('/api/auth/access-token', {
-      credentials: 'include', // Include cookies
+      credentials: 'include',
     });
 
     if (!tokenResponse.ok) {
@@ -365,38 +365,35 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     }
 
     const tokenData = await tokenResponse.json();
-    const token = tokenData.accessToken; // Use accessToken
+    const token = tokenData.accessToken;
 
     if (!token) {
       throw new Error("No authentication token available. Please log in again.");
     }
 
-    // Prepare the update data in JSON format
-    const updateData = {
-      title: data.title,
-      description: data.description,
-      price: data.price,
-      discount: data.discount,
-      dimensions: data.dimensions,
-      hasFrontBack: data.hasFrontBack,
-      configurations: data.configurations,
-      category: data.category,
-    };
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("price", data.price.toString());
+    formData.append("discount", data.discount.toString());
+    formData.append("dimensions", JSON.stringify(data.dimensions));
+    formData.append("hasFrontBack", data.hasFrontBack.toString());
+    formData.append("configurations", JSON.stringify(data.configurations));
+    formData.append("category", data.category);
+    if (data.image?.[0]) {
+      formData.append("thumbnail", data.image[0]);
+    }
 
-    console.log("Updating service with data:", updateData);
-
-    // Send JSON data to the update endpoint
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
-      method: "PUT",
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+      method: "POST",
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(updateData),
+      body: formData,
     });
 
     if (!response.ok) {
-      let message = "Failed to update service";
+      let message = "Failed to create service";
       try {
         const err = await response.json();
         if (err?.message) message = err.message;
@@ -406,23 +403,19 @@ const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
       throw new Error(message);
     }
 
-    const result = await response.json();
-    console.log("Service updated successfully:", result);
-
-    // Redirect to services page
+    await response.json();
     router.push("/services");
-    router.refresh();
-
   } catch (error) {
-    console.error("[UpdateService] Submission error:", error);
+    console.error("[CreateService] Submission error:", error);
     setError("response", {
       type: "manual",
-      message: error instanceof Error ? error.message : "Update failed. Please try again.",
+      message: error instanceof Error ? error.message : "Creation failed",
     });
   } finally {
     setLoading(false);
   }
 };
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Create New Print Service</h1>
