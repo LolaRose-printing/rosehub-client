@@ -9,7 +9,6 @@ interface Service {
   discount: number;
   hasFrontBack: boolean;
   category: string;
-  // add any other fields your API returns
 }
 
 // Fetch service from your API
@@ -25,12 +24,12 @@ async function fetchService(slug: string): Promise<Service> {
   return res.json();
 }
 
-// Notice: no custom PageProps interface
-export default async function ServicePage({ params }: { params: { slug: string } }): Promise<JSX.Element> {
-  const { slug } = params;
+// Let Next.js infer props
+export default async function ServicePage(props: any) {
+  const slug = props.params?.slug;
+  if (!slug) return <div className="p-4 text-red-500">No slug provided</div>;
 
   let service: Service | null = null;
-
   try {
     service = await fetchService(slug);
   } catch (err) {
@@ -38,9 +37,7 @@ export default async function ServicePage({ params }: { params: { slug: string }
     return <div className="p-4 text-red-500">Error loading service.</div>;
   }
 
-  if (!service) {
-    return <div className="p-4 text-gray-400">Service not found.</div>;
-  }
+  if (!service) return <div className="p-4 text-gray-400">Service not found.</div>;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
