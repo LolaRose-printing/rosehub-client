@@ -218,7 +218,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
   }, [watchImage]);
 
-
   const { user } = useAuth();
 
   const ensureLogin = async () => {
@@ -232,18 +231,26 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
+  
     try {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Fetch token from your API route
+      // Get token from server-side API
       const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include',
+        credentials: 'include', // Include cookies
       });
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.access_token;
-      if (!token) throw new Error("No authentication token");
   
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve authentication token");
+      }
+  
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken; // ← Use accessToken (not token)
+  
+      if (!token) {
+        throw new Error("No authentication token available. Please log in again.");
+      }
       // FormData for files
       const formData = new FormData();
       formData.append("title", data.title);
