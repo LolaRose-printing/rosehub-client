@@ -42,8 +42,17 @@ function convertServiceToFormData(service: Service) {
   };
 }
 
-export default async function ServicePage(props: { params: { slug: string } }) {
-  const slug = props.params.slug;
+// Generate metadata
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return {
+    title: `Edit Service ${slug} - RoseHub`,
+  };
+}
+
+export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
+  // Await the params promise
+  const { slug } = await params;
   
   let service: Service | null = null;
   try {
@@ -78,7 +87,7 @@ export default async function ServicePage(props: { params: { slug: string } }) {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Service</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Service: {service.title}</h1>
           <p className="text-gray-600">Update your print service details</p>
         </div>
         
