@@ -505,7 +505,10 @@ export default function EditServicePage() {
         }
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${id}`, {
+      const { slug } = useParams(); // grab slug from route
+
+      // Option 1: if your API supports updating by slug
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${slug}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -513,6 +516,7 @@ export default function EditServicePage() {
         },
         body: JSON.stringify(serviceData)
       });
+      
 
       const responseData = await response.json();
 
