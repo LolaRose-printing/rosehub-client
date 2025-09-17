@@ -228,7 +228,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
     return true;
   };
-  
+
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
@@ -236,8 +236,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API - FIXED
-      const tokenResponse = await fetch('/api/auth/access-token', { // Changed endpoint
+      // Get token from server-side API
+      const tokenResponse = await fetch('/api/auth/access-token', {
         credentials: 'include',
       });
   
@@ -252,6 +252,9 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         throw new Error("No authentication token available. Please log in again.");
       }
   
+      // DEBUG: Log token details
+      console.log("Token received, length:", token.length);
+      
       // FormData for files
       const formData = new FormData();
       formData.append("title", data.title);
@@ -279,10 +282,18 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         }
       );
   
+      // Check if the response is a redirect (which would indicate token issues)
+      if (response.redirected) {
+        console.error("Request was redirected, indicating auth failure");
+        console.error("Redirect URL:", response.url);
+      }
+  
       if (!response.ok) {
         if (response.status === 401) {
-          // Token is invalid/expired - redirect to login
-          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+          // Token is invalid/expired - redirect to login with PRODUCTION URL
+          const currentUrl = typeof window !== "undefined" ? window.location.href : "/";
+          const productionUrl = currentUrl.replace('localhost:3001', 'client.lolaprint.us');
+          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(productionUrl)}`;
           return;
         }
         
@@ -290,6 +301,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         try {
           const err = await response.json();
           if (err?.message) message = err.message;
+          console.error("Backend error details:", err);
         } catch {}
         throw new Error(message);
       }
