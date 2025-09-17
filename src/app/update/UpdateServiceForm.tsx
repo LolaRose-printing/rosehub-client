@@ -35,10 +35,24 @@ type ServiceInputs = {
   configurations: PrintConfiguration[];
   category: "brochure" | "booklet" | "other";
   response?: string;
-  existingImage?: string; // for existing service image
 };
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+interface UpdateServiceFormProps {
+  service: {
+    id: number;
+    title: string;
+    description: string;
+    price: number;
+    discount: number;
+    hasFrontBack: boolean;
+    category: string;
+    dimensions: PrintDimension;
+    configurations: PrintConfiguration[];
+    imageUrl?: string;
+  };
+}
+
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const dimensionSchema = z.object({
@@ -146,11 +160,10 @@ function configReducer(state: PrintConfiguration[], action: ConfigAction): Print
   }
 }
 
-export default function UpdateServicePage({ params }: { params: { slug: string } }) {
+export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   const router = useRouter();
-  const serviceId = params.slug; // slug used to fetch service
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [configs, dispatch] = useReducer(configReducer, [
+  const [imagePreview, setImagePreview] = useState<string | null>(service.imageUrl || null);
+  const [configs, dispatch] = useReducer(configReducer, service.configurations || [
     { title: "Default Options", items: [{ name: "Standard", additionalPrice: 0 }] },
   ]);
   const [loading, setLoading] = useState(false);
@@ -169,43 +182,17 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
   } = useForm<ServiceInputs>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      price: 0,
-      discount: 0,
-      dimensions: { width: 0, height: 0, unit: "px" },
-      hasFrontBack: false,
-      configurations: configs,
-      category: "other",
-      existingImage: undefined,
+      title: service.title,
+      description: service.description,
+      price: service.price,
+      discount: service.discount,
+      dimensions: service.dimensions,
+      hasFrontBack: service.hasFrontBack,
+      configurations: service.configurations,
+      category: service.category as "brochure" | "booklet" | "other",
     },
   });
 
-  // Load existing service
-  useEffect(() => {
-    async function fetchService() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${serviceId}`);
-        if (!res.ok) throw new Error("Failed to fetch service");
-        const data = await res.json();
-
-        setValue("title", data.title);
-        setValue("description", data.description);
-        setValue("price", data.price);
-        setValue("discount", data.discount);
-        setValue("category", data.category);
-        setValue("hasFrontBack", data.hasFrontBack);
-        setValue("dimensions", data.dimensions);
-        dispatch({ type: ConfigActionType.LOAD_TEMPLATE_CONFIGS, payload: data.configurations });
-        if (data.imageUrl) setImagePreview(data.imageUrl);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchService();
-  }, [serviceId, setValue]);
-
-  // Sync configs with form
   useEffect(() => {
     setValue("configurations", configs);
   }, [configs, setValue]);
@@ -213,15 +200,12 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
   const watchDimensions = watch("dimensions");
   const watchImage = watch("image");
 
-  // Image preview logic
   useEffect(() => {
     if (watchImage?.[0]) {
       const file = watchImage[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result as string;
-        img.onload = () => setImagePreview(img.src);
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -229,7 +213,8 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
 
   const ensureLogin = async () => {
     if (!user) {
-      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+      const returnTo = typeof window !== "undefined" ? window.location.href : "/";
+      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
       return false;
     }
     return true;
@@ -237,15 +222,26 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
 
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
+  
     try {
       const ok = await ensureLogin();
       if (!ok) return;
-
-      const tokenRes = await fetch("/api/auth/access-token", { credentials: "include" });
-      if (!tokenRes.ok) throw new Error("Failed to retrieve token");
-      const { accessToken } = await tokenRes.json();
-      if (!accessToken) throw new Error("No auth token");
-
+  
+      const tokenResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include',
+      });
+  
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve authentication token");
+      }
+  
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken;
+  
+      if (!token) {
+        throw new Error("No authentication token available. Please log in again.");
+      }
+  
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -255,169 +251,394 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
       formData.append("hasFrontBack", data.hasFrontBack.toString());
       formData.append("configurations", JSON.stringify(data.configurations));
       formData.append("category", data.category);
-      if (data.image?.[0]) formData.append("image", data.image[0]);
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${serviceId}`, {
-        method: "PUT",
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err?.message || "Failed to update service");
+      if (data.image?.[0]) {
+        formData.append("thumbnail", data.image[0]);
       }
-
-      router.push("/services"); // redirect after update
-    } catch (err: any) {
-      console.error(err);
-      setError("response", { message: err.message });
+  
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/update/${service.id}`, {
+        method: "PUT",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        let message = "Failed to update service";
+        try {
+          const err = await response.json();
+          if (err?.message) message = err.message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+  
+      await response.json();
+      router.push("/services");
+    } catch (error) {
+      console.error("[UpdateService] Submission error:", error);
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Update failed",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Update Service</h1>
+    <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
+      <h1 className="text-2xl font-bold text-center mb-8">Update Print Service</h1>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div>
-          <label className="block font-semibold">Title</label>
-          <input {...register("title")} className="border p-2 w-full" />
-          {errors.title && <p className="text-red-500">{errors.title.message}</p>}
-        </div>
-
-        <div>
-          <label className="block font-semibold">Description</label>
-          <textarea {...register("description")} className="border p-2 w-full" />
-          {errors.description && <p className="text-red-500">{errors.description.message}</p>}
-        </div>
-
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block font-semibold">Price</label>
-            <input type="number" step="0.01" {...register("price", { valueAsNumber: true })} className="border p-2" />
-            {errors.price && <p className="text-red-500">{errors.price.message}</p>}
+            <label className="block text-sm font-medium mb-2">Service Title *</label>
+            <input
+              {...register("title")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="e.g., Business Cards"
+            />
+            {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title.message}</p>}
           </div>
 
           <div>
-            <label className="block font-semibold">Discount</label>
-            <input type="number" step="0.01" {...register("discount", { valueAsNumber: true })} className="border p-2" />
-            {errors.discount && <p className="text-red-500">{errors.discount.message}</p>}
+            <label className="block text-sm font-medium mb-2">Description *</label>
+            <textarea
+              {...register("description")}
+              rows={3}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="Describe your print service..."
+            />
+            {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>}
           </div>
         </div>
 
-        <div>
-          <label className="block font-semibold">Category</label>
-          <select {...register("category")} className="border p-2 w-full">
-            <option value="brochure">Brochure</option>
-            <option value="booklet">Booklet</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold">Has Front/Back</label>
-          <input type="checkbox" {...register("hasFrontBack")} />
-        </div>
-
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
-            <label>Width</label>
-            <input type="number" {...register("dimensions.width", { valueAsNumber: true })} className="border p-2" />
+            <label className="block text-sm font-medium mb-2">Base Price ($) *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              {...register("price", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.price && <p className="text-red-400 text-sm mt-1">{errors.price.message}</p>}
           </div>
+
           <div>
-            <label>Height</label>
-            <input type="number" {...register("dimensions.height", { valueAsNumber: true })} className="border p-2" />
+            <label className="block text-sm font-medium mb-2">Discount ($) *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register("discount", { valueAsNumber: true })}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder="0.00"
+            />
+            {errors.discount && <p className="text-red-400 text-sm mt-1">{errors.discount.message}</p>}
           </div>
+
           <div>
-            <label>Unit</label>
-            <select {...register("dimensions.unit")} className="border p-2">
-              <option value="px">px</option>
-              <option value="in">in</option>
-              <option value="cm">cm</option>
+            <label className="block text-sm font-medium mb-2">Category *</label>
+            <select
+              {...register("category")}
+              className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="other">Other</option>
+              <option value="brochure">Brochure</option>
+              <option value="booklet">Booklet</option>
             </select>
+            {errors.category && <p className="text-red-400 text-sm mt-1">{errors.category.message}</p>}
+          </div>
+
+          <div className="flex items-end">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                {...register("hasFrontBack")}
+                className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm font-medium">Double-sided printing</span>
+            </label>
           </div>
         </div>
 
-        <div>
-          <label className="block font-semibold">Image</label>
-          <input type="file" accept="image/*" {...register("image")} />
-          {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 max-h-40" />}
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Print Dimensions *</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Width</label>
+              <input
+                type="number"
+                min="1"
+                {...register("dimensions.width", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 1050"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Height</label>
+              <input
+                type="number"
+                min="1"
+                {...register("dimensions.height", { valueAsNumber: true })}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="e.g., 600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Unit</label>
+              <select
+                {...register("dimensions.unit")}
+                className="w-full rounded bg-gray-700 border border-gray-600 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="px">Pixels (px)</option>
+                <option value="in">Inches (in)</option>
+                <option value="cm">Centimeters (cm)</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <div className="text-sm bg-gray-700 p-2 rounded w-full">
+                <span className="block">Required Size:</span>
+                <span className="font-medium">
+                  {watchDimensions?.width || 0}×{watchDimensions?.height || 0}
+                  {watchDimensions?.unit}
+                </span>
+                {watchDimensions?.width && watchDimensions?.height && (
+                  <span className="block mt-1">Aspect: {(watchDimensions.width / watchDimensions.height).toFixed(2)}:1</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {(errors.dimensions?.width || errors.dimensions?.height) && (
+            <p className="text-red-400 text-sm mt-2">Both width and height are required</p>
+          )}
         </div>
 
-        {/* Configurations */}
-        <div>
-          <h2 className="font-semibold mb-2">Configurations</h2>
-          {configs.map((config, idx) => (
-            <div key={idx} className="border p-2 mb-2">
-              <div className="flex justify-between items-center mb-2">
-                <input
-                  value={config.title}
-                  onChange={(e) => dispatch({ type: ConfigActionType.UPDATE_TITLE, payload: { configId: idx, title: e.target.value } })}
-                  className="border p-1 flex-1 mr-2"
-                />
-                <button type="button" onClick={() => dispatch({ type: ConfigActionType.REMOVE_CONFIG, payload: idx })}>
-                  <IoMdRemove />
-                </button>
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Service Image</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">Upload New Image (Optional)</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-700 border-gray-600 hover:bg-gray-600 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <IoMdImage className="w-10 h-10 mb-3 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-400">Click to upload</p>
+                    <p className="text-xs text-gray-400">PNG, JPG, WEBP (MAX. 15MB)</p>
+                  </div>
+                  <input type="file" className="hidden" {...register("image")} accept="image/*" />
+                </label>
               </div>
-              {config.items.map((item, i) => (
-                <div key={i} className="flex gap-2 mb-1">
-                  <input
-                    value={item.name}
-                    onChange={(e) =>
-                      dispatch({
-                        type: ConfigActionType.UPDATE_ITEM_NAME,
-                        payload: { configId: idx, itemIdx: i, name: e.target.value },
-                      })
-                    }
-                    className="border p-1 flex-1"
-                  />
-                  <input
-                    type="number"
-                    value={item.additionalPrice}
-                    onChange={(e) =>
-                      dispatch({
-                        type: ConfigActionType.UPDATE_ITEM_PRICE,
-                        payload: { configId: idx, itemIdx: i, price: Number(e.target.value) },
-                      })
-                    }
-                    className="border p-1 w-24"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: ConfigActionType.REMOVE_ITEM, payload: { configId: idx, itemIdx: i } })}
-                  >
-                    <IoMdRemove />
-                  </button>
+              {errors.image && <p className="text-red-400 text-sm mt-2">{errors.image.message as string}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Image Preview</label>
+              <div className="relative w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="max-h-44 max-w-full object-contain" />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <p>No image available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gray-800 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Print Options *</h2>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: ConfigActionType.ADD_CONFIG })}
+              className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md text-sm"
+            >
+              <IoMdAdd /> Add Option Group
+            </button>
+          </div>
+
+          {configs.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <p>No configuration options added yet</p>
+              <p className="text-sm mt-2">Add option groups like paper types, finishes, etc.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {configs.map((config, configId) => (
+                <div key={configId} className="bg-gray-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="w-full">
+                      <label className="block text-sm font-medium mb-1">Option Group Name *</label>
+                      <input
+                        type="text"
+                        value={config.title}
+                        onChange={(e) =>
+                          dispatch({
+                            type: ConfigActionType.UPDATE_TITLE,
+                            payload: { configId, title: e.target.value },
+                          })
+                        }
+                        className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        placeholder="e.g., Paper Type"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: ConfigActionType.REMOVE_CONFIG,
+                          payload: configId,
+                        })
+                      }
+                      className="ml-4 text-red-500 hover:text-red-400 mt-7"
+                    >
+                      <IoMdRemove />
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Available Options *</label>
+                    <div className="space-y-3 mb-4">
+                      {config.items.map((item, itemIdx) => (
+                        <div key={itemIdx} className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) =>
+                              dispatch({
+                                type: ConfigActionType.UPDATE_ITEM_NAME,
+                                payload: { configId, itemIdx, name: e.target.value },
+                              })
+                            }
+                            className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Option name"
+                          />
+
+                          <div className="flex items-center w-32">
+                            <span className="mr-2">+$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.additionalPrice}
+                              onChange={(e) =>
+                                dispatch({
+                                  type: ConfigActionType.UPDATE_ITEM_PRICE,
+                                  payload: {
+                                    configId,
+                                    itemIdx,
+                                    price: parseFloat(e.target.value) || 0,
+                                  },
+                                })
+                              }
+                              className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              placeholder="0.00"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              dispatch({
+                                type: ConfigActionType.REMOVE_ITEM,
+                                payload: { configId, itemIdx },
+                              })
+                            }
+                            className="text-red-400 hover:text-red-300 p-2"
+                          >
+                            <IoMdRemove />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex">
+                      <input
+                        type="text"
+                        placeholder="New option name..."
+                        className="flex-1 rounded-l bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const input = e.currentTarget;
+                            if (input.value.trim()) {
+                              dispatch({
+                                type: ConfigActionType.ADD_ITEM,
+                                payload: {
+                                  configId,
+                                  item: { name: input.value.trim(), additionalPrice: 0 },
+                                },
+                              });
+                              input.value = "";
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 hover:bg-indigo-700 px-4 rounded-r flex items-center"
+                        onClick={(e) => {
+                          const input = (e.currentTarget.previousElementSibling as HTMLInputElement) || null;
+                          if (input?.value.trim()) {
+                            dispatch({
+                              type: ConfigActionType.ADD_ITEM,
+                              payload: { configId, item: { name: input.value.trim(), additionalPrice: 0 } },
+                            });
+                            input.value = "";
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({
-                    type: ConfigActionType.ADD_ITEM,
-                    payload: { configId: idx, item: { name: "New Option", additionalPrice: 0 } },
-                  })
-                }
-                className="flex items-center gap-1 text-sm text-blue-600 mt-1"
-              >
-                <IoMdAdd /> Add Option
-              </button>
             </div>
-          ))}
-          <button type="button" onClick={() => dispatch({ type: ConfigActionType.ADD_CONFIG })} className="flex items-center gap-1 text-blue-600">
-            <IoMdAdd /> Add Option Group
+          )}
+          {errors.configurations && <p className="text-red-400 text-sm mt-2">{errors.configurations.message}</p>}
+        </div>
+
+        <div className="flex justify-center pt-6">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-8 rounded-md transition duration-200 disabled:opacity-50 flex items-center"
+          >
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Updating Service...
+              </>
+            ) : (
+              "Update Service"
+            )}
           </button>
         </div>
 
-        {errors.response && <p className="text-red-500">{errors.response.message}</p>}
-
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2" disabled={loading}>
-          {loading ? "Updating..." : "Update Service"}
-        </button>
+        {errors.response && <p className="text-red-500 text-center py-4">{errors.response.message}</p>}
       </form>
     </div>
   );

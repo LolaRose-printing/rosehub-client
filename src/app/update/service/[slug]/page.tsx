@@ -9,15 +9,19 @@ interface Service {
   discount: number;
   hasFrontBack: boolean;
   category: string;
+  dimensions: {
+    width: number;
+    height: number;
+    unit: string;
+  };
+  configurations: any[];
+  imageUrl?: string;
 }
 
 // Fetch service from your API
 async function fetchService(slug: string): Promise<Service> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${slug}`, {
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_AUTH_TOKEN}`,
-    },
   });
 
   if (!res.ok) throw new Error("Failed to fetch service");
@@ -39,10 +43,11 @@ export default async function ServicePage(props: any) {
 
   if (!service) return <div className="p-4 text-gray-400">Service not found.</div>;
 
+  // Pass the service data to UpdateServiceForm
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Edit Service: {service.title}</h1>
-      <UpdateServiceForm service={service} slug={slug} />
+      <UpdateServiceForm service={service} />
     </div>
   );
 }
