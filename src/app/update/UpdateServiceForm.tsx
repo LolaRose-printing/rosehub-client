@@ -545,61 +545,61 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Available Options *</label>
-                    <div className="space-y-3 mb-4">
-                      {config.items.map((item, itemIdx) => (
-                        <div key={itemIdx} className="flex items
-                                            <div key={itemIdx} className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) =>
-                          dispatch({
-                            type: ConfigActionType.UPDATE_ITEM_NAME,
-                            payload: { configId, itemIdx, name: e.target.value },
-                          })
-                        }
-                        className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="Option name"
-                      />
+  <label className="block text-sm font-medium mb-2">Available Options *</label>
+  <div className="space-y-3 mb-4">
+    {config.items.map((item, itemIdx) => (
+      <div key={itemIdx} className="flex items-center gap-3">
+        <input
+          type="text"
+          value={item.name}
+          onChange={(e) =>
+            dispatch({
+              type: ConfigActionType.UPDATE_ITEM_NAME,
+              payload: { configId, itemIdx, name: e.target.value },
+            })
+          }
+          className="flex-1 rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          placeholder="Option name"
+        />
 
-                      <div className="flex items-center w-32">
-                        <span className="mr-2">+$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.additionalPrice}
-                          onChange={(e) =>
-                            dispatch({
-                              type: ConfigActionType.UPDATE_ITEM_PRICE,
-                              payload: {
-                                configId,
-                                itemIdx,
-                                price: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                          className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          placeholder="0.00"
-                        />
-                      </div>
+        <div className="flex items-center w-32">
+          <span className="mr-2">+$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={item.additionalPrice}
+            onChange={(e) =>
+              dispatch({
+                type: ConfigActionType.UPDATE_ITEM_PRICE,
+                payload: {
+                  configId,
+                  itemIdx,
+                  price: parseFloat(e.target.value) || 0,
+                },
+              })
+            }
+            className="w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="0.00"
+          />
+        </div>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          dispatch({
-                            type: ConfigActionType.REMOVE_ITEM,
-                            payload: { configId, itemIdx },
-                          })
-                        }
-                        className="text-red-400 hover:text-red-300 p-2"
-                      >
-                        <IoMdRemove />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+        <button
+          type="button"
+          onClick={() =>
+            dispatch({
+              type: ConfigActionType.REMOVE_ITEM,
+              payload: { configId, itemIdx },
+            })
+          }
+          className="text-red-400 hover:text-red-300 p-2"
+        >
+          <IoMdRemove />
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
 
                 <div className="flex">
                   <input
