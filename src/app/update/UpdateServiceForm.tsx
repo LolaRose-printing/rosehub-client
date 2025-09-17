@@ -177,7 +177,7 @@ export default function UpdateServicePage({ params }: { params: { slug: string }
       hasFrontBack: false,
       configurations: configs,
       category: "other",
-      existingImage: null,
+      existingImage: undefined,
     },
   });
 
