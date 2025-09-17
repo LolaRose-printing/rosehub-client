@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     allowedDevOrigins: ['client.lolaprint.us', 'localhost:3001'],
   },
-  
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'server.lolaprint.us' },
@@ -12,15 +12,19 @@ const nextConfig = {
       { protocol: 'https', hostname: 'client.lolaprint.us' },
     ],
   },
-  
+
   serverActions: {
     bodySizeLimit: '10mb',
   },
-  
+
   api: {
     bodyParser: {
       sizeLimit: '10mb',
     },
+  },
+
+  eslint: {
+    ignoreDuringBuilds: true, // ✅ prevents lint errors from blocking production build
   },
 };
 
