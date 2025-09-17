@@ -229,6 +229,34 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     return true;
   };
 
+  const getAuthToken = async () => {
+    try {
+      const tokenResponse = await fetch('/api/auth/token', { // Try different endpoint
+        credentials: 'include',
+      });
+  
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        return tokenData.accessToken || tokenData.token;
+      }
+  
+      // Fallback to access-token endpoint
+      const fallbackResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include',
+      });
+  
+      if (fallbackResponse.ok) {
+        const tokenData = await fallbackResponse.json();
+        return tokenData.accessToken || tokenData.token;
+      }
+  
+      throw new Error("Failed to retrieve authentication token");
+    } catch (error) {
+      console.error("Token retrieval error:", error);
+      throw new Error("Authentication token unavailable");
+    }
+  };
+
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
@@ -236,16 +264,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include',
-      });
-  
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to retrieve authentication token");
-      }
-  
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken;
+      // Get token using the new function
+      const token = await getAuthToken();
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
@@ -263,17 +283,26 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         category: data.category,
       };
   
+      console.log("Sending update with token:", token.substring(0, 20) + "..."); // Debug log
+  
       // Send JSON data to the update endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json', // Important: JSON content type
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(updateData),
       });
   
       if (!response.ok) {
+        // If unauthorized, try to refresh token
+        if (response.status === 401) {
+          // Force logout and redirect to login
+          window.location.href = `/api/auth/logout?returnTo=${encodeURIComponent(window.location.href)}`;
+          return;
+        }
+  
         let message = "Failed to update service";
         try {
           const err = await response.json();
@@ -284,25 +313,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         throw new Error(message);
       }
   
-      // If there's a new image, upload it separately
-      if (data.image?.[0]) {
-        const imageFormData = new FormData();
-        imageFormData.append("thumbnail", data.image[0]);
-        
-        // You'll need to check if your backend has a separate image update endpoint
-        const imageResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}/image`, {
-          method: "POST",
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: imageFormData,
-        });
-  
-        if (!imageResponse.ok) {
-          console.warn("Failed to update service image, but service was updated successfully");
-        }
-      }
-  
       await response.json();
       router.push("/services");
       router.refresh();
@@ -310,7 +320,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Update failed",
+        message: error instanceof Error ? error.message : "Update failed. Please try logging in again.",
       });
     } finally {
       setLoading(false);
