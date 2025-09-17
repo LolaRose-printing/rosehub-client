@@ -28,26 +28,62 @@ async function fetchService(slug: string): Promise<Service> {
   return res.json();
 }
 
-// Let Next.js infer props
-export default async function ServicePage(props: any) {
-  const slug = props.params?.slug;
-  if (!slug) return <div className="p-4 text-red-500">No slug provided</div>;
+// Function to convert the service data to the expected format
+function convertServiceToFormData(service: Service) {
+  return {
+    ...service,
+    dimensions: {
+      ...service.dimensions,
+      // Ensure unit is one of the expected values, default to "px" if not
+      unit: (service.dimensions.unit === "in" || service.dimensions.unit === "cm" || service.dimensions.unit === "px") 
+        ? service.dimensions.unit 
+        : "px" as const
+    }
+  };
+}
 
+export default async function ServicePage(props: { params: { slug: string } }) {
+  const slug = props.params.slug;
+  
   let service: Service | null = null;
   try {
     service = await fetchService(slug);
   } catch (err) {
     console.error("[ServicePage] Error fetching service:", err);
-    return <div className="p-4 text-red-500">Error loading service.</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-6 bg-red-50 rounded-lg">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Service</h2>
+          <p className="text-gray-600">Please try again later.</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!service) return <div className="p-4 text-gray-400">Service not found.</div>;
+  if (!service) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-6 bg-yellow-50 rounded-lg">
+          <h2 className="text-2xl font-bold text-yellow-600 mb-4">Service Not Found</h2>
+          <p className="text-gray-600">The service you're looking for doesn't exist.</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Pass the service data to UpdateServiceForm
+  // Convert the service data to the expected format
+  const formattedService = convertServiceToFormData(service);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Edit Service: {service.title}</h1>
-      <UpdateServiceForm service={service} />
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Service</h1>
+          <p className="text-gray-600">Update your print service details</p>
+        </div>
+        
+        <UpdateServiceForm service={formattedService} />
+      </div>
     </div>
   );
 }
