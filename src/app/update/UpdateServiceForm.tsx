@@ -219,12 +219,41 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   }, [watchImage]);
 
 
+  const { user } = useAuth();
 
+  const ensureLogin = async () => {
+    if (!user) {
+      const returnTo = typeof window !== "undefined" ? window.location.href : "/";
+      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+      return false;
+    }
+    return true;
+  };
+  
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
     try {
-      // Prepare the update data in JSON format (matches your backend UpdateServiceDto)
+      const ok = await ensureLogin();
+      if (!ok) return;
+  
+      // Get token from server-side API
+      const tokenResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include', // Include cookies
+      });
+  
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve authentication token");
+      }
+  
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken; // Use accessToken
+  
+      if (!token) {
+        throw new Error("No authentication token available. Please log in again.");
+      }
+  
+      // Prepare the update data in JSON format
       const updateData = {
         title: data.title,
         description: data.description,
@@ -238,24 +267,17 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   
       console.log("Updating service with data:", updateData);
   
-      // Send JSON data to the update endpoint - the server will handle authentication
+      // Send JSON data to the update endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
         method: "PUT",
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // This will send cookies including auth token
         body: JSON.stringify(updateData),
       });
   
       if (!response.ok) {
-        // Handle specific error cases
-        if (response.status === 401) {
-          // Token expired, redirect to NextAuth login
-          window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(window.location.href)}`;
-          return;
-        }
-  
         let message = "Failed to update service";
         try {
           const err = await response.json();
@@ -283,7 +305,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       setLoading(false);
     }
   };
-  
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>

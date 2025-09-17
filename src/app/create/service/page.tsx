@@ -339,82 +339,81 @@ export default function CreateServicePage() {
 
   const { user } = useAuth();
 
-const ensureLogin = async () => {
-  if (!user) {
-    const returnTo = typeof window !== "undefined" ? window.location.href : "/";
-    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
-    return false;
-  }
-  return true;
-};
-
-const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-  setLoading(true);
-
-  try {
-    const ok = await ensureLogin();
-    if (!ok) return;
-
-    // Get token from server-side API
-    const tokenResponse = await fetch('/api/auth/access-token', {
-      credentials: 'include',
-    });
-
-    if (!tokenResponse.ok) {
-      throw new Error("Failed to retrieve authentication token");
+  const ensureLogin = async () => {
+    if (!user) {
+      const returnTo = typeof window !== "undefined" ? window.location.href : "/";
+      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+      return false;
     }
-
-    const tokenData = await tokenResponse.json();
-    const token = tokenData.accessToken;
-
-    if (!token) {
-      throw new Error("No authentication token available. Please log in again.");
-    }
-
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("price", data.price.toString());
-    formData.append("discount", data.discount.toString());
-    formData.append("dimensions", JSON.stringify(data.dimensions));
-    formData.append("hasFrontBack", data.hasFrontBack.toString());
-    formData.append("configurations", JSON.stringify(data.configurations));
-    formData.append("category", data.category);
-    if (data.image?.[0]) {
-      formData.append("thumbnail", data.image[0]);
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
-      method: "POST",
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      let message = "Failed to create service";
-      try {
-        const err = await response.json();
-        if (err?.message) message = err.message;
-      } catch {
-        /* ignore */
+    return true;
+  };
+  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+    setLoading(true);
+  
+    try {
+      const ok = await ensureLogin();
+      if (!ok) return;
+  
+      // Get token from server-side API
+      const tokenResponse = await fetch('/api/auth/access-token', {
+        credentials: 'include', // Include cookies
+      });
+  
+      if (!tokenResponse.ok) {
+        throw new Error("Failed to retrieve authentication token");
       }
-      throw new Error(message);
+  
+      const tokenData = await tokenResponse.json();
+      const token = tokenData.accessToken; // ← Use accessToken (not token)
+  
+      if (!token) {
+        throw new Error("No authentication token available. Please log in again.");
+      }
+  
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("price", data.price.toString());
+      formData.append("discount", data.discount.toString());
+      formData.append("dimensions", JSON.stringify(data.dimensions));
+      formData.append("hasFrontBack", data.hasFrontBack.toString());
+      formData.append("configurations", JSON.stringify(data.configurations));
+      formData.append("category", data.category);
+      if (data.image?.[0]) {
+        formData.append("thumbnail", data.image[0]);
+      }
+  
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/create`, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        let message = "Failed to create service";
+        try {
+          const err = await response.json();
+          if (err?.message) message = err.message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+  
+      await response.json();
+      router.push("/services");
+    } catch (error) {
+      console.error("[CreateService] Submission error:", error);
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Creation failed",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    await response.json();
-    router.push("/services");
-  } catch (error) {
-    console.error("[CreateService] Submission error:", error);
-    setError("response", {
-      type: "manual",
-      message: error instanceof Error ? error.message : "Creation failed",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
