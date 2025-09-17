@@ -236,12 +236,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      const tokenResponse = await fetch('/api/auth/access-token', { credentials: 'include' });
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken;
-      if (!token) throw new Error("No authentication token");
-  
-      // Use FormData
+      // Use FormData for file upload
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -253,16 +248,18 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       formData.append("configurations", JSON.stringify(data.configurations));
   
       if (data.image && data.image[0]) {
-        formData.append("thumbnail", data.image[0]); // must match backend field name
+        formData.append("thumbnail", data.image[0]);
       }
   
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
-        method: "PUT",
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      // Send PUT request with cookies (no Authorization header)
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
+        {
+          method: "PUT",
+          body: formData,
+          credentials: "include", // <-- send auth cookie automatically
+        }
+      );
   
       if (!response.ok) {
         let message = "Failed to update service";
@@ -280,11 +277,15 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       router.refresh();
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
-      setError("response", { type: "manual", message: error instanceof Error ? error.message : "Update failed" });
+      setError("response", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Update failed",
+      });
     } finally {
       setLoading(false);
     }
   };
+  
   
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
