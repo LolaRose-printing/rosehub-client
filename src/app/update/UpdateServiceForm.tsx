@@ -251,8 +251,8 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       if (!response.ok) {
         // Handle specific error cases
         if (response.status === 401) {
-          // Token expired, redirect to login
-          window.location.href = `/login?returnTo=${encodeURIComponent(window.location.href)}`;
+          // Token expired, redirect to NextAuth login
+          window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(window.location.href)}`;
           return;
         }
   
@@ -283,6 +283,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       setLoading(false);
     }
   };
+  
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>
