@@ -237,9 +237,9 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API
+      // Get token from server-side API - use the same pattern as create service
       const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include', // Include cookies
+        credentials: 'include',
       });
   
       if (!tokenResponse.ok) {
@@ -247,7 +247,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       }
   
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // Use accessToken
+      const token = tokenData.accessToken || tokenData.token; // Try both accessToken and token
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
@@ -266,6 +266,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       };
   
       console.log("Updating service with data:", updateData);
+      console.log("Using token:", token); // Debug: log the token
   
       // Send JSON data to the update endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
@@ -278,6 +279,13 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       });
   
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token is invalid/expired, redirect to login
+          const returnTo = encodeURIComponent(window.location.href);
+          window.location.href = `/api/auth/login?returnTo=${returnTo}`;
+          return;
+        }
+  
         let message = "Failed to update service";
         try {
           const err = await response.json();
@@ -305,7 +313,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       setLoading(false);
     }
   };
-
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
       <h1 className="text-2xl font-bold text-center mb-8">Update Print Service: {service.title}</h1>
