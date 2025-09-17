@@ -11,12 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(`/auth?error=${error}`, request.url));
     }
 
-    if (!code) throw new Error('No authorization code received');
+    if (!code) {
+      throw new Error('No authorization code received');
+    }
 
     const domain = process.env.AUTH0_DOMAIN!;
     const clientId = process.env.AUTH0_CLIENT_ID!;
     const clientSecret = process.env.AUTH0_CLIENT_SECRET!;
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/callback`;
+    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://client.lolaprint.us'}/api/auth/callback`;
     const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE!;
 
     // Exchange code for tokens
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: clientId,
-        client_secret: clientSecret,
+        client_secret: clientSecret, // ✅ Correct secret
         code,
         redirect_uri: redirectUri,
         audience,
@@ -35,9 +37,10 @@ export async function GET(request: NextRequest) {
 
     const responseText = await tokenResponse.text();
     if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${responseText}`);
+
     const tokens = JSON.parse(responseText);
 
-    // Fetch user info
+    // Get user info
     const userResponse = await fetch(`https://${domain}/userinfo`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
@@ -57,29 +60,17 @@ export async function GET(request: NextRequest) {
     }
     user['https://rosehub.com/roles'] = roles;
 
-    // Temporary admin override
+    // Temporary admin assignment
     if (['esemenchenko0@gmail.com'].includes(user.email)) {
       user['https://rosehub.com/roles'] = ['admin'];
     }
 
-    const isProd = process.env.NODE_ENV === 'production';
+    console.log("heree", tokenResponse);
 
-    // Set cookies with path="/" and proper secure flag
+    // Set cookies and redirect
     const response = NextResponse.redirect(new URL('/', request.url));
-    response.cookies.set('auth_user', JSON.stringify(user), {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
-    response.cookies.set('auth_access_token', tokens.access_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: tokens.expires_in || 3600,
-      path: '/',
-    });
+    response.cookies.set('auth_user', JSON.stringify(user), { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7 });
+    response.cookies.set('auth_access_token', tokens.access_token, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: tokens.expires_in || 3600 });
 
     return response;
   } catch (err) {

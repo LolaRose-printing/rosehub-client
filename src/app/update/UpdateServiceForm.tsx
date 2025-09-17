@@ -236,17 +236,27 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include', // Include cookies
-      });
-  
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to retrieve authentication token");
+      // Get token from the correct source - adjust based on your auth implementation
+      let token: string | null = null;
+      
+      // Option 1: From localStorage (common approach)
+      if (typeof window !== 'undefined') {
+        token = localStorage.getItem('authToken') || 
+                localStorage.getItem('accessToken') ||
+                localStorage.getItem('token');
       }
-  
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // ✅ This matches your API response
+      
+      // Option 2: From cookies
+      if (!token && typeof document !== 'undefined') {
+        const cookieMatch = document.cookie.match(/(?:^|; )authToken=([^;]*)/) ||
+                           document.cookie.match(/(?:^|; )accessToken=([^;]*)/) ||
+                           document.cookie.match(/(?:^|; )token=([^;]*)/);
+        if (cookieMatch) token = decodeURIComponent(cookieMatch[1]);
+      }
+      
+      // Option 3: From your auth context if it provides a separate way to get token
+      // const { getToken } = useAuth();
+      // token = await getToken();
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
@@ -258,7 +268,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       formData.append("description", data.description);
       formData.append("price", data.price.toString());
       formData.append("discount", data.discount.toString());
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
+      formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
       formData.append("category", data.category);
       formData.append("dimensions", JSON.stringify(data.dimensions));
       formData.append("configurations", JSON.stringify(data.configurations));
