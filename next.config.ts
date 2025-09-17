@@ -24,7 +24,8 @@ const nextConfig = {
   },
 
   eslint: {
-    ignoreDuringBuilds: true, // ✅ prevents lint errors from blocking production build
+    // ✅ Prevents ESLint errors/warnings from breaking `next build`
+    ignoreDuringBuilds: true,
   },
 };
 
