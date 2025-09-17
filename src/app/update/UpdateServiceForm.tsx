@@ -237,7 +237,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       if (!ok) return;
   
       // Get token from server-side API - FIXED
-      const tokenResponse = await fetch('/api/auth/token', { // Changed endpoint
+      const tokenResponse = await fetch('/api/auth/access-token', { // Changed endpoint
         credentials: 'include',
       });
   
