@@ -236,9 +236,9 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include', // Include cookies
+      // Get token from server-side API - FIXED
+      const tokenResponse = await fetch('/api/auth/token', { // Changed endpoint
+        credentials: 'include',
       });
   
       if (!tokenResponse.ok) {
@@ -246,7 +246,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       }
   
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // ✅ This matches your API response
+      const token = tokenData.accessToken;
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
