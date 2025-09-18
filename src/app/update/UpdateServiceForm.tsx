@@ -236,7 +236,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // Get token from server-side API
+      // ✅ Get fresh token from server
       const tokenResponse = await fetch('/api/auth/access-token', {
         credentials: 'include', // Include cookies
       });
@@ -246,12 +246,15 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       }
   
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // ← Use accessToken (not token)
+      const token = tokenData.accessToken; // Must match your /api/auth/access-token response
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
       }
-      // FormData for files
+  
+      console.log("Using token:", token); // Debug log
+  
+      // ✅ Create FormData
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
@@ -266,7 +269,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         formData.append("thumbnail", data.image[0]);
       }
   
-      // Send PUT request with token header and FormData
+      // ✅ Send PUT request
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
         {
@@ -274,7 +277,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
           headers: {
             'Authorization': `Bearer ${token}`, // Must include token
           },
-          body: formData,
+          body: formData, // Do NOT set Content-Type manually
         }
       );
   
@@ -292,6 +295,7 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
   
       router.push("/services");
       router.refresh();
+  
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
