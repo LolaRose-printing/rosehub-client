@@ -229,96 +229,96 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     return true;
   };
   
-  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-    setLoading(true);
-  
-    try {
-      const ok = await ensureLogin();
-      if (!ok) return;
-  
-      // Get token from the correct source - adjust based on your auth implementation
-      let token: string | null = null;
-      
-      // Option 1: From localStorage (common approach)
-      if (typeof window !== 'undefined') {
-        token = localStorage.getItem('authToken') || 
-                localStorage.getItem('accessToken') ||
-                localStorage.getItem('token');
-      }
-      
-      // Option 2: From cookies
-      if (!token && typeof document !== 'undefined') {
-        const cookieMatch = document.cookie.match(/(?:^|; )authToken=([^;]*)/) ||
-                           document.cookie.match(/(?:^|; )accessToken=([^;]*)/) ||
-                           document.cookie.match(/(?:^|; )token=([^;]*)/);
-        if (cookieMatch) token = decodeURIComponent(cookieMatch[1]);
-      }
-      
-      // Option 3: From your auth context if it provides a separate way to get token
-      // const { getToken } = useAuth();
-      // token = await getToken();
-  
-      if (!token) {
-        throw new Error("No authentication token available. Please log in again.");
-      }
-  
-      // FormData for files
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
-      formData.append("category", data.category);
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      formData.append("configurations", JSON.stringify(data.configurations));
-  
-      if (data.image && data.image[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
-  
-      // Send PUT request with token header and FormData
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
-        {
-          method: "PUT",
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-  
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token is invalid/expired - redirect to login
-          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
-          return;
-        }
-        
-        let message = "Failed to update service";
-        try {
-          const err = await response.json();
-          if (err?.message) message = err.message;
-        } catch {}
-        throw new Error(message);
-      }
-  
-      const result = await response.json();
-      console.log("Service updated successfully:", result);
-  
-      router.push("/services");
-      router.refresh();
-    } catch (error) {
-      console.error("[UpdateService] Submission error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Update failed",
-      });
-    } finally {
-      setLoading(false);
+const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+  setLoading(true);
+
+  try {
+    const ok = await ensureLogin();
+    if (!ok) return;
+
+    // Get token from the correct source - adjust based on your auth implementation
+    let token: string | null = null;
+    
+    // Option 1: From localStorage (common approach)
+    if (typeof window !== 'undefined') {
+      token = localStorage.getItem('authToken') || 
+              localStorage.getItem('accessToken') ||
+              localStorage.getItem('token');
     }
-  };
+    
+    // Option 2: From cookies
+    if (!token && typeof document !== 'undefined') {
+      const cookieMatch = document.cookie.match(/(?:^|; )authToken=([^;]*)/) ||
+                         document.cookie.match(/(?:^|; )accessToken=([^;]*)/) ||
+                         document.cookie.match(/(?:^|; )token=([^;]*)/);
+      if (cookieMatch) token = decodeURIComponent(cookieMatch[1]);
+    }
+    
+    // Option 3: From your auth context if it provides a separate way to get token
+    // const { getToken } = useAuth();
+    // token = await getToken();
+
+    if (!token) {
+      throw new Error("No authentication token available. Please log in again.");
+    }
+
+    // FormData for files
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("price", data.price.toString());
+    formData.append("discount", data.discount.toString());
+    formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
+    formData.append("category", data.category);
+    formData.append("dimensions", JSON.stringify(data.dimensions));
+    formData.append("configurations", JSON.stringify(data.configurations));
+
+    if (data.image && data.image[0]) {
+      formData.append("thumbnail", data.image[0]);
+    }
+
+    // Send PUT request with token header and FormData
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
+      {
+        method: "PUT",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        // Token is invalid/expired - redirect to login
+        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+        return;
+      }
+      
+      let message = "Failed to update service";
+      try {
+        const err = await response.json();
+        if (err?.message) message = err.message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const result = await response.json();
+    console.log("Service updated successfully:", result);
+
+    router.push("/services");
+    router.refresh();
+  } catch (error) {
+    console.error("[UpdateService] Submission error:", error);
+    setError("response", {
+      type: "manual",
+      message: error instanceof Error ? error.message : "Update failed",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
