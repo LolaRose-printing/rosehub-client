@@ -228,100 +228,87 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
     return true;
   };
+  
+const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
+  setLoading(true);
 
-  const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
-    setLoading(true);
-  
-    try {
-      const ok = await ensureLogin();
-      if (!ok) return;
-  
-      // Get token from server-side API
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include',
-      });
-  
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to retrieve authentication token");
-      }
-  
-      const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken;
-  
-      if (!token) {
-        throw new Error("No authentication token available. Please log in again.");
-      }
-  
-      // DEBUG: Log token details
-      console.log("Token received, length:", token.length);
-      
-      // FormData for files
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
-      formData.append("hasFrontBack", data.hasFrontBack.toString());
-      formData.append("category", data.category);
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      formData.append("configurations", JSON.stringify(data.configurations));
-  
-      if (data.image && data.image[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
-  
-      // Send PUT request with token header and FormData
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-  
-      // Check if the response is a redirect (which would indicate token issues)
-      if (response.redirected) {
-        console.error("Request was redirected, indicating auth failure");
-        console.error("Redirect URL:", response.url);
-      }
-  
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token is invalid/expired - redirect to login with PRODUCTION URL
-          const currentUrl = typeof window !== "undefined" ? window.location.href : "/";
-          const productionUrl = currentUrl.replace('localhost:3001', 'client.lolaprint.us');
-          window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(productionUrl)}`;
-          return;
-        }
-        
-        let message = "Failed to update service";
-        try {
-          const err = await response.json();
-          if (err?.message) message = err.message;
-          console.error("Backend error details:", err);
-        } catch {}
-        throw new Error(message);
-      }
-  
-      const result = await response.json();
-      console.log("Service updated successfully:", result);
-  
-      router.push("/services");
-      router.refresh();
-    } catch (error) {
-      console.error("[UpdateService] Submission error:", error);
-      setError("response", {
-        type: "manual",
-        message: error instanceof Error ? error.message : "Update failed",
-      });
-    } finally {
-      setLoading(false);
+  try {
+    const ok = await ensureLogin();
+    if (!ok) return;
+
+    // Get token from server-side API
+    const tokenResponse = await fetch('/api/auth/access-token', {
+      credentials: 'include', // Include cookies
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error("Failed to retrieve authentication token");
     }
-  };
+
+    const tokenData = await tokenResponse.json();
+    const token = tokenData.accessToken; // ✅ This matches your API response
+
+    if (!token) {
+      throw new Error("No authentication token available. Please log in again.");
+    }
+
+    // FormData for files
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("price", data.price.toString());
+    formData.append("discount", data.discount.toString());
+    formData.append("hasFrontBack", data.hasFrontBack.toString());
+    formData.append("category", data.category);
+    formData.append("dimensions", JSON.stringify(data.dimensions));
+    formData.append("configurations", JSON.stringify(data.configurations));
+
+    if (data.image && data.image[0]) {
+      formData.append("thumbnail", data.image[0]);
+    }
+
+    // Send PUT request with token header and FormData
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
+      {
+        method: "PUT",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        // Token is invalid/expired - redirect to login
+        window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(window.location.href)}`;
+        return;
+      }
+      
+      let message = "Failed to update service";
+      try {
+        const err = await response.json();
+        if (err?.message) message = err.message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const result = await response.json();
+    console.log("Service updated successfully:", result);
+
+    router.push("/services");
+    router.refresh();
+  } catch (error) {
+    console.error("[UpdateService] Submission error:", error);
+    setError("response", {
+      type: "manual",
+      message: error instanceof Error ? error.message : "Update failed",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-lg">
