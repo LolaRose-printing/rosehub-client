@@ -218,16 +218,6 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
   }, [watchImage]);
 
-  const { user } = useAuth();
-
-  const ensureLogin = async () => {
-    if (!user) {
-      const returnTo = typeof window !== "undefined" ? window.location.href : "/";
-      window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
-      return false;
-    }
-    return true;
-  };
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
@@ -252,32 +242,31 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
         throw new Error("No authentication token available. Please log in again.");
       }
   
-      // Create FormData
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("price", String(data.price));
-      formData.append("discount", String(data.discount));
-      formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
-      formData.append("category", data.category);
+      // Prepare JSON data (not FormData)
+      const requestData = {
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        discount: data.discount,
+        hasFrontBack: data.hasFrontBack,
+        category: data.category,
+        dimensions: data.dimensions,
+        configurations: data.configurations,
+        // Note: Image updates would need a separate endpoint since this is JSON
+      };
   
-      // Nested objects as JSON strings
-      formData.append("dimensions", JSON.stringify(data.dimensions));
-      formData.append("configurations", JSON.stringify(data.configurations));
-  
-      // Include thumbnail if available
-      if (data.image && data.image[0]) {
-        formData.append("thumbnail", data.image[0]);
-      }
-  
-      // Send PUT request to backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`, // Only auth header, no content-type
-        },
-        body: formData,
-      });
+      // Send PUT request with JSON
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json", // Add content-type for JSON
+          },
+          body: JSON.stringify(requestData),
+        }
+      );
   
       if (!response.ok) {
         let message = "Failed to update service";
