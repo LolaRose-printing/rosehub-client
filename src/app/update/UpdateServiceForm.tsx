@@ -228,17 +228,17 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
     }
     return true;
   };
-  
   const onSubmit: SubmitHandler<ServiceInputs> = async (data) => {
     setLoading(true);
   
     try {
+      // Ensure user is logged in
       const ok = await ensureLogin();
       if (!ok) return;
   
-      // ✅ Get fresh token from server
-      const tokenResponse = await fetch('/api/auth/access-token', {
-        credentials: 'include', // Include cookies
+      // Get fresh token
+      const tokenResponse = await fetch("/api/auth/access-token", {
+        credentials: "include",
       });
   
       if (!tokenResponse.ok) {
@@ -246,40 +246,38 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       }
   
       const tokenData = await tokenResponse.json();
-      const token = tokenData.accessToken; // Must match your /api/auth/access-token response
+      const token = tokenData.accessToken;
   
       if (!token) {
         throw new Error("No authentication token available. Please log in again.");
       }
   
-      console.log("Using token:", token); // Debug log
-  
-      // ✅ Create FormData
+      // Create FormData
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("price", data.price.toString());
-      formData.append("discount", data.discount.toString());
+      formData.append("price", String(data.price));
+      formData.append("discount", String(data.discount));
       formData.append("hasFrontBack", data.hasFrontBack ? "true" : "false");
       formData.append("category", data.category);
+  
+      // Nested objects as JSON strings
       formData.append("dimensions", JSON.stringify(data.dimensions));
       formData.append("configurations", JSON.stringify(data.configurations));
   
+      // Include thumbnail if available
       if (data.image && data.image[0]) {
         formData.append("thumbnail", data.image[0]);
       }
   
-      // ✅ Send PUT request
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`,
-        {
-          method: "PUT",
-          headers: {
-            'Authorization': `Bearer ${token}`, // Must include token
-          },
-          body: formData, // Do NOT set Content-Type manually
-        }
-      );
+      // Send PUT request to backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/services/${service.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`, // Only auth header, no content-type
+        },
+        body: formData,
+      });
   
       if (!response.ok) {
         let message = "Failed to update service";
@@ -293,9 +291,9 @@ export default function UpdateServiceForm({ service }: UpdateServiceFormProps) {
       const result = await response.json();
       console.log("Service updated successfully:", result);
   
+      // Navigate back to services page
       router.push("/services");
       router.refresh();
-  
     } catch (error) {
       console.error("[UpdateService] Submission error:", error);
       setError("response", {
